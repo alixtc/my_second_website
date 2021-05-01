@@ -1,6 +1,3 @@
-
-POUR CHANGER LA MAIN PAGE IL FAUT MODIFIER LE FICHIER _index.md
-
 ## Services
 Nous proposons des services personnalisés d'analyse de données de type variés. Nous développons des solutions adaptées et spécifiques à chaque demande.
 
@@ -10,7 +7,7 @@ Nous proposons des services personnalisés d'analyse de données de type variés
   - Utilisation de modèles de machine learning et deep learning 
   - Interface intuitive et facile d'accès 
   
-Des exemples d'outils que nous proposons sont disponibles [ici](http://localhost:4321/shiny/)
+Des exemples d'outils que nous proposons sont disponibles [ici](https://shiny.atc-data.fr).
 
 ## A qui s'adressent nos services ?
 Les solutions proposées ici s'adressent avant tout aux entreprises de taille variable, collectivitées ou agriculteurs qui peuvent avoir des besoins ponctuels en traitement et analyse de données. 

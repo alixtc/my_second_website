@@ -5,50 +5,82 @@ date: '2021-04-17'
 slug: classification-with-tidymodels
 categories: []
 tags: []
+editor_options: 
+  chunk_output_type: console
 ---
+
+This is a simple example of data classification using tree bases models with the Tidymodels package. The data comme from a classical dataset about credit default with various explainatory variables associated.
+
 ```{r , include=FALSE}
 library(tidyverse)
 library(tidymodels)
 library(caret)
 ```
 
-Data import and splitting into training and test sets
+## Data import and splitting into training and test sets
 ```{r }
 credit <- read.csv("credit.csv")
-head(credit)
-```
-
-
-```{r }
 credit <- credit %>% 
   mutate_if(is.character, factor) %>% 
   mutate(default = factor(default),
-         dependents = factor(dependents))
+         dependents = factor(dependents)) %>% 
+  as_tibble()
+head(credit)
 ```
 
-
-```{r, echo=FALSE}
+First let's have a bried look at the data. We will start with all the numeric data at first.
+```{r, echo=FALSE, message=FALSE}
 credit %>% 
-  select(is.numeric) %>% 
+  select(where(is.numeric)) %>% 
   pivot_longer(cols = everything(), names_to = "key", values_to = "value" ) %>% 
   ggplot(aes(value)) + 
   geom_histogram() + geom_freqpoly(color = "red") + 
   facet_wrap(~key, scales = "free_x")
 ```
 
+It appears that only the variables `age`, `amount` and `months_loan_duration` are actually numerical. The other will be changed to a factor to take that into account.
+But first let's have a more detailed look on the numerical variables depending on whether or not there was a loan default (`2` corresponds to a default)
 
 ```{r}
+credit %>% 
+  select(default, age, amount, months_loan_duration) %>% 
+  pivot_longer(cols = age:months_loan_duration, names_to = "key", values_to = "value" ) %>% 
+  ggplot(aes(value, color = default)) + geom_density() + facet_wrap(~key, scales = "free")
 
+```
+
+Now for each categorical factor let's have a look at the fraction of the default credit `2` to determine what are some of the most important features to predict whether the credit will be reimbursed or not.
+
+```{r}
+credit <- credit %>% 
+  mutate(across(.cols = c(existing_credits, installment_rate, residence_history), .fns = factor))
+
+credit %>% 
+  select(!is.numeric) %>% 
+  pivot_longer(cols = c(everything(), -default)) %>% 
+  group_by(default, name) %>% 
+  count(value) %>% 
+  group_by(name,value) %>% 
+  mutate(frac = n / sum(n) * 100) %>% 
+  ggplot(aes(value, frac, fill = default)) + geom_col() + 
+  coord_flip() + facet_wrap(~name, ncol = 3, scales = "free")
+  
+```
+
+From the look of it, the conditions that show a higher proportion of credit default are located inside variables such as "credit_history", "checking_balance", "foreign_worker". This indicates that not very surprisingly people with a low account balance, with fewer property, or bad credit records are more likely to default. 
+
+Now that we have a better idea of what are the data, we can start modelling to try to predict the outcome of a credit when it's contracted.
+
+## Classification with decision tree
+We will begin with a simple classification tree model, but first we have to split the data for the final evaluation.
+```{r}
 indexes <-initial_split(credit, prop = 0.9)
 training <- training(indexes)
 test <- testing(indexes)
 ```
 
-## Classification with decision tree
-
+Here is the model definition:
 ```{r}
-
-
 tree_model_def <- decision_tree() %>% 
   set_engine("C5.0") %>% 
   set_mode("classification") %>% 
@@ -57,41 +89,22 @@ tree_model_def <- decision_tree() %>%
 tree_fit <-  tree_model_def %>% fit(
   default ~ ., 
   data = training)
-
-results <- tree_fit %>% 
-  predict(test) %>% 
-  bind_cols(truth = test$default)
-confusionMatrix(results$.pred_class, results$truth)
-
 ```
-
-
+And finally we use the decision tree model on the test dataset to predict the outcome of the credit and compare it to the actual outcome.
 ```{r}
-reci_cred <- recipe(default~.,
-                    data = training) %>% 
-  step_upsample(default)
-
-tree_model_def <- decision_tree() %>% 
-  set_engine("C5.0") %>% 
-  set_mode("classification") %>% 
-  set_args(trials = 10)
-
-ups_wf <- workflow() %>% 
-  add_model(tree_model_def) %>% 
-  add_recipe(reci_cred)
-
-tree_fit <-  ups_wf %>% fit(data = training)
-
 results <- tree_fit %>% 
   predict(test) %>% 
   bind_cols(truth = test$default)
 confusionMatrix(results$.pred_class, results$truth)
 ```
 
+Not too bad but the model is actually much more effective to predict that the loans will not default. 
 
-## Simple example with Randomforest
-```{r}
-rf_mdl <- rand_forest(mtry = 4, trees = 400) %>% 
+<!-- Let's see if we can improve the prediction with a more sophisticated approach. -->
+
+<!-- ## Example with a Randomforest -->
+```{r, eval=FALSE, include=FALSE}
+rf_mdl <- rand_forest() %>% 
   set_engine("ranger") %>% 
   set_mode("classification")
 
