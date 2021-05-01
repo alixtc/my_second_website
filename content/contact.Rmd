@@ -1,0 +1,16 @@
+---
+title: "Prise de contact"
+author: "ATC"
+date: "05/04/2021"
+output: html_document
+---
+
+
+Merci d'adresser toute demande à l'email suivant:
+
+atc-data@gmail.com
+
+Afin de déterminer une solution correspondant à vos besoins, nous vous proposons un entretien personnalisé par téléphone durant lequel nous determinerons ensemble le type de données à traiter, les méthodes d'analyse à employer ainsi que les modalités de présentation et de visualisation.
+
+A cette occasion, nous pourrons déterminer le délai pour le développement de vos outils personnalisés et nous vous transmettrons un devis détaillé.
+

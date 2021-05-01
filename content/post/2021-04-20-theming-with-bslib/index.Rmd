@@ -1,0 +1,35 @@
+---
+title: Theming with "bslib"
+author: alix
+date: '1970-01-01'
+slug: theming-with-bslib
+draft: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Theming with bslib can be a bit difficult to apprehend for those like me that never set foot in the world of HTML and CSS. By trial and error I found a few options that are worth mentioning for modifying a Navbar.
+
+- option `inverse` in navbarPage, setting it to TRUE fill the navbar 
+
+- options that work inside `bs_theme()` for theme "simplex" and "united":
+```{r eval=FALSE}
+bs_them(                                      
+  `navbar-dark-brand-color` = "#D9230F", #working
+  "navbar-dark-color" = "lightblue", ## working
+  `navbar-dark-hover-color` = "black" #working
+)
+```
+
+Code that does not work so far inside bs_theme
+```{r eval=FALSE}
+
+# 'navbar-bg' = "black",
+# 'navbar-light-color' = "black",
+# `navbar-dark-bg` = "purple",
+# `navbar-dark-contrast` = "black",
+
+```
+

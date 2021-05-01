@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>A Hugo website</title>
+    <link>homepage/</link>
+    <description>Recent content on A Hugo website</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language><atom:link href="homepage/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title></title>
+      <link>homepage/shiny/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>homepage/shiny/</guid>
+      <description>   </description>
+    </item>
+    
+    <item>
+      <title>Prise de contact</title>
+      <link>homepage/contact/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>homepage/contact/</guid>
+      <description>Merci d’adresser toute demande à l’email suivant:
+atc-data@gmail.com
+Afin de déterminer une solution correspondant à vos besoins, nous vous proposons un entretien personnalisé par téléphone durant lequel nous determinerons ensemble le type de données à traiter, les méthodes d’analyse à employer ainsi que les modalités de présentation et de visualisation.
+A cette occasion, nous pourrons déterminer le délai pour le développement de vos outils personnalisés et nous vous transmettrons un devis détaillé.</description>
+    </item>
+    
+    <item>
+      <title>Présentation de notre activité</title>
+      <link>homepage/homepage/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>homepage/homepage/</guid>
+      <description>Services Nous proposons des services personnalisés d’analyse de données de type variés. Nous développons des solutions adaptées et spécifiques à chaque demande.
+ Visualisations de données complexes Extraction et mise en forme automatique Analyse dynamique sur applications Shiny Utilisation de modèles de machine learning et deep learning Interface intuitive et facile d’accès  Des exemples d’outils que nous proposons sont disponibles ici
+ A qui s’adressent nos services ?</description>
+    </item>
+    
+  </channel>
+</rss>

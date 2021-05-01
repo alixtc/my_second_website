@@ -1,0 +1,71 @@
+---
+title: "matlab-functions-in-r"
+author: "ATC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+
+As someone who learned to do data science using Matlab, there are a few functions which I found extremely convenient in those days that did not have a direct equivalent in R. Two of them are the `clear` and `clearvars` functions.
+
+First of all, I know that in Rstudio the broomstick in the "Environment" part of the UI does exactly what `clear` does: removing all variables from the workspace. But I found it interesting to write such functions as it allow to get an insight of what are function execution environments.
+
+
+## Clear function
+
+First here is my working example for the function `clear`:
+
+```{r eval=FALSE}
+clear <- function() {
+  genv <- globalenv()
+  rm(list = ls(genv), envir = genv)
+}
+```
+
+It's actually rather simple in it writing but when I first started trying to write it, it was probably something along those lines:
+```{r eval=FALSE}
+stupid_clear <- function(){
+  rm(list = ls())
+}
+```
+This first clumsy example was missing this central point: when a function is executed a new environment is defined in which the function will carry its operations: the execution environment". In the execution environment of "stupid_clear" the `ls()` function that list all the variables present in the current environment, well returned nothing as no other variables were defined in the execution environment.
+
+In order for it to work, I had to modify the function so that it executes in a specific environment, and for that I needed to things:
+
+  - Get the environment were variables in the workspace are stored, that part is not difficult it is the global environment, and can be accessed with `globalenv()`
+  - Tell the function `rm()` to look and execute in that global environment
+  
+This first example illustrate some of the 
+
+## Cleavars function
+
+The second example is much more interesting it allows to remove all but the specified variables from the workspace. This is quite convenient because it allows to write variable names with autocompletion and without quotes. Pure laziness on my part I must admit, anyway here is the code:
+
+```{r eval=FALSE}
+clearvars_except <- function(...){
+  # Get variables as typed in the function call
+  variables <- as.list(sys.call())
+  variables <- paste(variables[-1])
+  
+  if ( length(variables) == 0 ){
+    stop("Select variables to remove from global environment")
+  }else{
+    
+    # Keep only the typed variables
+    globenv <- globalenv()
+    rm(list = setdiff(ls(globenv), variables),
+       envir = globenv)
+  }
+}
+```
+
+First the function as to retrieve what the user inputed during the function call, meaning what is contained in the ellipis (the `...`). The first two lines are doing exactly that, all the information is retrived by `sys.call()` and transformed in a list. The second lines removes from the function itself from the varibles to remove (In case it is defined in the global environment.)
+
+The second and third parts of the code are much simpler, the former check that at least one variable is selected to avoid the accidental removal of all variables including the one you acutally wanted to keep. The latter is just the modified version of the `clear` function we just saw. 
+
+## Conclusion
+
+Though I really struggled to understand what was going on at first but un the end, these are  simple examples but I found them really interesting and it helped me to get some of the basic concepts behind environments. 

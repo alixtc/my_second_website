@@ -1,0 +1,111 @@
+---
+title: "Classification with Tidymodels"
+author: "ATC"
+date: '2021-04-17'
+slug: classification-with-tidymodels
+categories: []
+tags: []
+---
+```{r , include=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(caret)
+```
+
+Data import and splitting into training and test sets
+```{r }
+credit <- read.csv("credit.csv")
+head(credit)
+```
+
+
+```{r }
+credit <- credit %>% 
+  mutate_if(is.character, factor) %>% 
+  mutate(default = factor(default),
+         dependents = factor(dependents))
+```
+
+
+```{r, echo=FALSE}
+credit %>% 
+  select(is.numeric) %>% 
+  pivot_longer(cols = everything(), names_to = "key", values_to = "value" ) %>% 
+  ggplot(aes(value)) + 
+  geom_histogram() + geom_freqpoly(color = "red") + 
+  facet_wrap(~key, scales = "free_x")
+```
+
+
+```{r}
+
+indexes <-initial_split(credit, prop = 0.9)
+training <- training(indexes)
+test <- testing(indexes)
+```
+
+## Classification with decision tree
+
+```{r}
+
+
+tree_model_def <- decision_tree() %>% 
+  set_engine("C5.0") %>% 
+  set_mode("classification") %>% 
+  set_args(trials = 10)
+
+tree_fit <-  tree_model_def %>% fit(
+  default ~ ., 
+  data = training)
+
+results <- tree_fit %>% 
+  predict(test) %>% 
+  bind_cols(truth = test$default)
+confusionMatrix(results$.pred_class, results$truth)
+
+```
+
+
+```{r}
+reci_cred <- recipe(default~.,
+                    data = training) %>% 
+  step_upsample(default)
+
+tree_model_def <- decision_tree() %>% 
+  set_engine("C5.0") %>% 
+  set_mode("classification") %>% 
+  set_args(trials = 10)
+
+ups_wf <- workflow() %>% 
+  add_model(tree_model_def) %>% 
+  add_recipe(reci_cred)
+
+tree_fit <-  ups_wf %>% fit(data = training)
+
+results <- tree_fit %>% 
+  predict(test) %>% 
+  bind_cols(truth = test$default)
+confusionMatrix(results$.pred_class, results$truth)
+```
+
+
+## Simple example with Randomforest
+```{r}
+rf_mdl <- rand_forest(mtry = 4, trees = 400) %>% 
+  set_engine("ranger") %>% 
+  set_mode("classification")
+
+ft_fit <- rf_mdl %>% fit(default ~ ., data = training)
+
+rf_result <- ft_fit %>% 
+  predict(test) %>% 
+  rename("pred"= ".pred_class") %>% 
+  bind_cols(truth = test$default)
+
+confusionMatrix(rf_result$pred, rf_result$truth)
+```
+
+
+
+
+

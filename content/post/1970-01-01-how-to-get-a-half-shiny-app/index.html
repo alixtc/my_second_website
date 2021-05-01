@@ -1,0 +1,55 @@
+---
+title: How to get a Half-shiny app?
+author: alix
+date: '1970-01-01'
+slug: how-to-get-a-half-shiny-app
+categories: []
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Do you want a half-shiny App ? Because that’s how you get a nice half-shiny app with half of your screen being grey like that :</p>
+<p><img src="half-shiny.png" /></p>
+<p>For that I just had to split my UI and Server functions the wrong way. Instead off having an “app.R” in your application folder:</p>
+<p>Besides the lame jokes, it took me ages to figure out what was actually going around. Turns out I was just following bad practices for splitting my app. What I did wrong was:</p>
+<ul>
+<li>Created a ui.R file with obviously the UI…</li>
+</ul>
+<pre class="r"><code>library(shiny)
+# Define UI for application that draws a histogram
+ui &lt;- fluidPage(
+  # Put Here all your nice code  
+)
+# Run the application 
+shinyApp(ui = ui, server = server)</code></pre>
+<ul>
+<li>Created a server.R file with… the server function</li>
+</ul>
+<pre class="r"><code>server &lt;- function(input, output) {
+  # Here again anything working
+}</code></pre>
+<ul>
+<li>Ran the app and witness half of your magnificent app turn magically into a grey screen.</li>
+</ul>
+<div id="how-to-fix-the-problem" class="section level1">
+<h1>HOW TO FIX THE PROBLEM?</h1>
+<ul>
+<li>you KEEP an app.R file in your application folder, with only these lines of code</li>
+</ul>
+<pre class="r"><code>library(shiny)
+source(file = &quot;ui.R&quot;)
+source(file= &quot;server.R&quot;)
+shinyApp(ui = ui, server = server)</code></pre>
+<ul>
+<li>In the UI file (“ui.R”), you modify the origal code using <code>shinyUI()</code>, like that:</li>
+</ul>
+<pre class="r"><code>ui &lt;- shinyUI({fluidPage(
+  # ALL the nice code you can imagine
+)})</code></pre>
+<ul>
+<li>your server.R file does not change</li>
+</ul>
+<p>Now the half-grey screen at the bottom of your app should be gone. You can’t imagine how much time I spent working on this using poor fixes like fixed app height that I needed to adjust perpetually depending on the changes.</p>
+</div>

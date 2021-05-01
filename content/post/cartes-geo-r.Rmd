@@ -1,0 +1,40 @@
+---
+title: "Cartes chloroplèthes"
+author: "ATC"
+date: "Tue Apr 13 11:47:03 2021"
+output:
+  blogdown::html_page
+   # toc: true
+---
+
+# Comment utiliser une carte pour representer des données géographiques sous R
+
+## Télécharger la carte désirée
+
+La première étape consiste à récupérer une carte de la zone d'intérêt. Par exemple sur le site data.gouv.fr les cartes de France à différentes échelles peuvent être téléchargées. Nous utiliserons ici les cartes au format .SHP qui peuvent être lues par le package `sf`.
+
+https://www.data.gouv.fr/en/datasets/contours-des-regions-francaises-sur-openstreetmap/
+
+[Carte des régions](https://www.data.gouv.fr/en/datasets/r/aacf9338-8944-4513-a7b9-4cd7c2db2fa9)
+[Carte des départements](https://www.data.gouv.fr/fr/datasets/contours-des-departements-francais-issus-d-openstreetmap/)
+
+## Charger la carte dans R
+
+Après avoir téléchargé l'archive contenant la carte des départements dans notre working-directory, et avoir extrait l'archive, on peut accèder au contenu de la carte.
+
+```
+carte <-  
+  st_read(dsn = "departement/DEPARTEMENT.shp", 
+                  layer = "DEPARTEMENT",
+                  quiet = TRUE) %>% 
+  st_transform(2154) %>% 
+  st_simplify(dTolerance = 2500) 
+```
+
+L'import s'effectue avec la fonction `st_read`, la projection selon le système de coodonées souhaité est réalisée par `st_transform`. Le chiffre "2154" est un code [EPSG](https://epsg.io/2154) qui indique comment la transformation doit être effectuée, il correspond ici à une projection assez standard pour la France métropolitaine.
+
+Une des fonctions que j'ai trouvé être des plus utiles est la fonction `st_simplify` qui permet de réduire le nombre de polygones de la carte et donc de faciliter les calculs. Ici l'argument `dTolerance = 2500` indique que les niveaux de détails inférieus à 2500m ne seront pas représentés dans l'objet "carte".
+
+C'est indispensable pour ceux qui sont équipés d'un ordinateur avec une très faible puisssance de calcul. Attention à ne pas simplifier la carte avec une tolérance trop élevée sous peine de voir apparaître des "vides" entre les frontières des différentes régions ou départements.
+
+Rq: Si vos data nécessitent davantage de simplification, tout en préservant la topologie de la carte, le package `rmapshaper::ms_simplify` sont faits exactement pour cela. Comme expliqué dans cet excellent [chapitre](https://geocompr.robinlovelace.net/geometric-operations.html).

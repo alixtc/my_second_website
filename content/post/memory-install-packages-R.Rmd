@@ -1,0 +1,28 @@
+---
+title: "Installer des packages R sur serveur AWS - problèmes et solutions"
+author: "ATC"
+date: "2021-04-13T11:38:09"
+output: html_document
+ 
+---
+
+En essayant d'installer des packages pour R sur une instance AWS, il arrive parfois que l'installation n'aboutisse tout simplement pas. Le programme apparaît alors complètement bloqué, notamment lors des étapes de compilation.
+
+Ceci est particulièrement impactant pour des packages comme `dplyr` ou `sf` qui sont assez lourds et demandent une quantité de mémoire assez importante pour être installés.
+
+La solution consiste à utiliser le gestionnaire de paquets de Linux pour réaliser cette installation. Normalement, lors de l'installation de R sur votre serveur Linux, vous avez dû ajouter l'adresse du CRAN à la liste des repositories qui sont autorisés. SI ce n'est pas le cas, un petite visite sur cette page : https://cran.r-project.org/bin/linux/ubuntu/ nous donne les infos nécessaires.
+
+A taper avec la commande sudo `add-apt-repository ppa:c2d4u.team/c2d4u4.0+`
+
+A partir de là, on peut normalement piocher les packages R directement sur le site du CRAN avec le gestionnaire de paquets sans ouvrir R.
+
+Par exemple pour installer l'ensemble du tidyverse, il suffit de taper:
+`sudo apt-get install r-cran-tidyverse`.
+
+De la même façon les packages qui nous intéressent peuvent être cherchés via la commande:
+`apt-get search r-cran-*` en remplaçant "*" par votre package préféré, bien sûr.
+
+En passant directement via le gestionnaire de paquets, la compilation apparait comme bien plus efricace et bien moins coûteuse en ressources. Ceci permet d'installer à peu près n'importe quel package R sans avoir besoin d'upgrader le service AWS pour diminuer la puissance de l'instance juste après.
+
+Bref c'est une solution parfaite pour les gens comme moi qui veulent se faire la main sur une instance AWS tout en restant exclusivement sur la version gratuite.
+
