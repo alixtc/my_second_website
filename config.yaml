@@ -20,18 +20,22 @@ menu:
     # - name: CV
     #   url: /cv/CV Tiran-Cappello Alix - Data scientist.pdf
     #   weight: 2
-    - name: Shiny
-      url: /shiny/
-      weight: 5
+
     - name: Articles et Publications
       url: /post/
       weight: 3
     - name: Contact
       url: /contact/
       weight: 4
-    
+      
     - name: Exemple d'application
       url: https://shiny.atc-data.fr/app-behavioral-data-analysis/
+      weight: 4
+      
+    - name: Shiny
+      url: https://shiny.atc-data.fr/
+      weight: 5
+
       
   #  - name: GitHub
   #    url: https://github.com/rstudio/blogdown

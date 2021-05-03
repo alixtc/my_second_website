@@ -1,8 +1,6 @@
 ---
 title: " "
-output:
-  blogdown::html_page:
-    toc: false
+output: html_document
 runtime: shiny
 ---
 
