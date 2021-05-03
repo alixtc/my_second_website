@@ -96,30 +96,85 @@ confusionMatrix(results$.pred_class, results$truth)</code></pre>
 ## 
 ##           Reference
 ## Prediction  1  2
-##          1 67 13
-##          2  9 10
+##          1 62 14
+##          2 12 11
 ##                                           
-##                Accuracy : 0.7778          
-##                  95% CI : (0.6831, 0.8552)
-##     No Information Rate : 0.7677          
-##     P-Value [Acc &gt; NIR] : 0.4611          
+##                Accuracy : 0.7374          
+##                  95% CI : (0.6393, 0.8207)
+##     No Information Rate : 0.7475          
+##     P-Value [Acc &gt; NIR] : 0.6419          
 ##                                           
-##                   Kappa : 0.3368          
+##                   Kappa : 0.2854          
 ##                                           
-##  Mcnemar&#39;s Test P-Value : 0.5224          
+##  Mcnemar&#39;s Test P-Value : 0.8445          
 ##                                           
-##             Sensitivity : 0.8816          
-##             Specificity : 0.4348          
-##          Pos Pred Value : 0.8375          
-##          Neg Pred Value : 0.5263          
-##              Prevalence : 0.7677          
-##          Detection Rate : 0.6768          
-##    Detection Prevalence : 0.8081          
-##       Balanced Accuracy : 0.6582          
+##             Sensitivity : 0.8378          
+##             Specificity : 0.4400          
+##          Pos Pred Value : 0.8158          
+##          Neg Pred Value : 0.4783          
+##              Prevalence : 0.7475          
+##          Detection Rate : 0.6263          
+##    Detection Prevalence : 0.7677          
+##       Balanced Accuracy : 0.6389          
 ##                                           
 ##        &#39;Positive&#39; Class : 1               
 ## </code></pre>
+<pre class="r"><code>tree_fit %&gt;% 
+  predict(test, type = &quot;prob&quot;) %&gt;% 
+  bind_cols(truth = test$default ) %&gt;% 
+  roc_curve(.pred_1, truth = truth) %&gt;% 
+  autoplot()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
 <p>Not too bad but the model is actually much more effective to predict that the loans will not default.</p>
+<p>Let’s see if we can get a better estimation with a different model.</p>
+</div>
+<div id="classification-with-a-glm" class="section level2">
+<h2>Classification with a GLM</h2>
+<pre class="r"><code>glm_dec &lt;- logistic_reg(penalty = 1e-2) %&gt;% 
+  set_engine(&quot;glmnet&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;)
+
+glm_fit &lt;- glm_dec %&gt;% fit(default~., data = training)
+
+res_glm &lt;- glm_fit %&gt;% 
+  predict(test) %&gt;% 
+  bind_cols(truth = test$default )
+  
+confusionMatrix(res_glm$.pred_class, res_glm$truth)</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction  1  2
+##          1 71 14
+##          2  3 11
+##                                           
+##                Accuracy : 0.8283          
+##                  95% CI : (0.7394, 0.8967)
+##     No Information Rate : 0.7475          
+##     P-Value [Acc &gt; NIR] : 0.03740         
+##                                           
+##                   Kappa : 0.4676          
+##                                           
+##  Mcnemar&#39;s Test P-Value : 0.01529         
+##                                           
+##             Sensitivity : 0.9595          
+##             Specificity : 0.4400          
+##          Pos Pred Value : 0.8353          
+##          Neg Pred Value : 0.7857          
+##              Prevalence : 0.7475          
+##          Detection Rate : 0.7172          
+##    Detection Prevalence : 0.8586          
+##       Balanced Accuracy : 0.6997          
+##                                           
+##        &#39;Positive&#39; Class : 1               
+## </code></pre>
+<pre class="r"><code>glm_fit %&gt;% 
+  predict(test, type = &quot;prob&quot;) %&gt;% 
+  bind_cols(truth = test$default ) %&gt;% 
+  roc_curve(.pred_1, truth = truth) %&gt;% 
+  autoplot()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>In this 2nd model the evaluation metrics indicates a much better detection of default cases and a similar performance regarding non defaulting credit. Overall this second model seems much more efficient to predict the future of a contracted loan, as shown by the differences of the area under curve for the ROC curve plots.</p>
 <!-- Let's see if we can improve the prediction with a more sophisticated approach. -->
 <!-- ## Example with a Randomforest -->
 </div>

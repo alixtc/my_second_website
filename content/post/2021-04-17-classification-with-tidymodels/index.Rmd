@@ -96,9 +96,40 @@ results <- tree_fit %>%
   predict(test) %>% 
   bind_cols(truth = test$default)
 confusionMatrix(results$.pred_class, results$truth)
+
+tree_fit %>% 
+  predict(test, type = "prob") %>% 
+  bind_cols(truth = test$default ) %>% 
+  roc_curve(.pred_1, truth = truth) %>% 
+  autoplot()
 ```
 
 Not too bad but the model is actually much more effective to predict that the loans will not default. 
+
+Let's see if we can get a better estimation with a different model.
+
+## Classification with a GLM
+```{r}
+glm_dec <- logistic_reg(penalty = 1e-2) %>% 
+  set_engine("glmnet") %>% 
+  set_mode("classification")
+
+glm_fit <- glm_dec %>% fit(default~., data = training)
+
+res_glm <- glm_fit %>% 
+  predict(test) %>% 
+  bind_cols(truth = test$default )
+  
+confusionMatrix(res_glm$.pred_class, res_glm$truth)
+
+glm_fit %>% 
+  predict(test, type = "prob") %>% 
+  bind_cols(truth = test$default ) %>% 
+  roc_curve(.pred_1, truth = truth) %>% 
+  autoplot()
+```
+
+In this 2nd model the evaluation metrics indicates a much better detection of default cases and a similar performance regarding non defaulting credit. Overall this second model seems much more efficient to predict the future of a contracted loan, as shown by the differences of the area under curve for the ROC curve plots.
 
 <!-- Let's see if we can improve the prediction with a more sophisticated approach. -->
 
@@ -116,6 +147,8 @@ rf_result <- ft_fit %>%
   bind_cols(truth = test$default)
 
 confusionMatrix(rf_result$pred, rf_result$truth)
+
+
 ```
 
 
