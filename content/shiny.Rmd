@@ -1,9 +1,11 @@
 ---
-title: ""
-output: html_document
+title: " "
+output:
+  blogdown::html_page:
+    toc: false
 runtime: shiny
 ---
 
 
-<iframe height="1700" width="100%" src="https://shiny.atc-data.fr/"></iframe> 
+<iframe height="700" width="100%" src="https://shiny.atc-data.fr/"></iframe> 
 
