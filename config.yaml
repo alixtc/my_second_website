@@ -17,6 +17,9 @@ menu:
     - name: Présentation
       url: /homepage/
       weight: 1
+    # - name: CV
+    #   url: /cv/CV Tiran-Cappello Alix - Data scientist.pdf
+    #   weight: 2
     - name: Shiny
       url: /shiny/
       weight: 5

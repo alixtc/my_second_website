@@ -6,3 +6,5 @@ slug: cv
 categories: []
 tags: []
 ---
+ 
+![]("CV Tiran-Cappello Alix - Data scientist.pdf")

@@ -2,40 +2,99 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>A Hugo website</title>
-    <link>homepage/</link>
+    <link>/</link>
     <description>Recent content on A Hugo website</description>
     <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language><atom:link href="homepage/index.xml" rel="self" type="application/rss+xml" />
+    <language>en-us</language>
+    <lastBuildDate>Sat, 17 Apr 2021 00:00:00 +0000</lastBuildDate><atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Classification with Tidymodels</title>
+      <link>/2021/04/17/classification-with-tidymodels/</link>
+      <pubDate>Sat, 17 Apr 2021 00:00:00 +0000</pubDate>
+      
+      <guid>/2021/04/17/classification-with-tidymodels/</guid>
+      <description>This is a simple example of data classification using tree bases models with the Tidymodels package. The data comme from a classical dataset about credit default with various explainatory variables associated.
+Data import and splitting into training and test sets credit &amp;lt;- read.csv(&amp;quot;credit.csv&amp;quot;) credit &amp;lt;- credit %&amp;gt;% mutate_if(is.character, factor) %&amp;gt;% mutate(default = factor(default), dependents = factor(dependents)) %&amp;gt;% as_tibble() head(credit) ## # A tibble: 6 x 21 ## checking_balance months_loan_duration credit_history purpose amount ## &amp;lt;fct&amp;gt; &amp;lt;int&amp;gt; &amp;lt;fct&amp;gt; &amp;lt;fct&amp;gt; &amp;lt;int&amp;gt; ## 1 &amp;lt; 0 DM 6 critical radio/tv 1169 ## 2 1 - 200 DM 48 repaid radio/tv 5951 ## 3 unknown 12 critical education 2096 ## 4 &amp;lt; 0 DM 42 repaid furniture 7882 ## 5 &amp;lt; 0 DM 24 delayed car (new) 4870 ## 6 unknown 36 repaid education 9055 ## # … with 16 more variables: savings_balance &amp;lt;fct&amp;gt;, employment_length &amp;lt;fct&amp;gt;, ## # installment_rate &amp;lt;int&amp;gt;, personal_status &amp;lt;fct&amp;gt;, other_debtors &amp;lt;fct&amp;gt;, ## # residence_history &amp;lt;int&amp;gt;, property &amp;lt;fct&amp;gt;, age &amp;lt;int&amp;gt;, installment_plan &amp;lt;fct&amp;gt;, ## # housing &amp;lt;fct&amp;gt;, existing_credits &amp;lt;int&amp;gt;, default &amp;lt;fct&amp;gt;, dependents &amp;lt;fct&amp;gt;, ## # telephone &amp;lt;fct&amp;gt;, foreign_worker &amp;lt;fct&amp;gt;, job &amp;lt;fct&amp;gt; First let’s have a bried look at the data.</description>
+    </item>
+    
+    <item>
+      <title>Cartes chloroplèthes</title>
+      <link>/2021/04/13/cartes-chloropl%C3%A8thes/</link>
+      <pubDate>Tue, 13 Apr 2021 11:47:03 +0000</pubDate>
+      
+      <guid>/2021/04/13/cartes-chloropl%C3%A8thes/</guid>
+      <description>Comment utiliser une carte pour representer des données géographiques sous R Télécharger la carte désirée La première étape consiste à récupérer une carte de la zone d’intérêt. Par exemple sur le site data.gouv.fr les cartes de France à différentes échelles peuvent être téléchargées. Nous utiliserons ici les cartes au format .SHP qui peuvent être lues par le package sf.
+https://www.data.gouv.fr/en/datasets/contours-des-regions-francaises-sur-openstreetmap/
+Carte des régions Carte des départements
+ Charger la carte dans R Après avoir téléchargé l’archive contenant la carte des départements dans notre working-directory, et avoir extrait l’archive, on peut accèder au contenu de la carte.</description>
+    </item>
+    
+    <item>
+      <title>Installer des packages R sur serveur AWS - problèmes et solutions</title>
+      <link>/2021/04/13/installer-des-packages-r-sur-serveur-aws-probl%C3%A8mes-et-solutions/</link>
+      <pubDate>Tue, 13 Apr 2021 11:38:09 +0000</pubDate>
+      
+      <guid>/2021/04/13/installer-des-packages-r-sur-serveur-aws-probl%C3%A8mes-et-solutions/</guid>
+      <description>En essayant d’installer des packages pour R sur une instance AWS, il arrive parfois que l’installation n’aboutisse tout simplement pas. Le programme apparaît alors complètement bloqué, notamment lors des étapes de compilation.
+Ceci est particulièrement impactant pour des packages comme dplyr ou sf qui sont assez lourds et demandent une quantité de mémoire assez importante pour être installés.
+La solution consiste à utiliser le gestionnaire de paquets de Linux pour réaliser cette installation.</description>
+    </item>
+    
+    <item>
+      <title>How to get a Half-shiny app?</title>
+      <link>/1970/01/01/how-to-get-a-half-shiny-app/</link>
+      <pubDate>Thu, 01 Jan 1970 00:00:00 +0000</pubDate>
+      
+      <guid>/1970/01/01/how-to-get-a-half-shiny-app/</guid>
+      <description>Do you want a half-shiny App ? Because that’s how you get a nice half-shiny app with half of your screen being grey like that :
+For that I just had to split my UI and Server functions the wrong way. Instead off having an “app.R” in your application folder:
+Besides the lame jokes, it took me ages to figure out what was actually going around. Turns out I was just following bad practices for splitting my app.</description>
+    </item>
+    
     <item>
       <title></title>
-      <link>homepage/shiny/</link>
+      <link>/shiny/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>homepage/shiny/</guid>
+      <guid>/shiny/</guid>
       <description>   </description>
     </item>
     
     <item>
-      <title>Prise de contact</title>
-      <link>homepage/contact/</link>
+      <title>CV</title>
+      <link>/cv/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>homepage/contact/</guid>
-      <description>Merci d’adresser toute demande à l’email suivant:
-atc-data@gmail.com
-Afin de déterminer une solution correspondant à vos besoins, nous vous proposons un entretien personnalisé par téléphone durant lequel nous determinerons ensemble le type de données à traiter, les méthodes d’analyse à employer ainsi que les modalités de présentation et de visualisation.
-A cette occasion, nous pourrons déterminer le délai pour le développement de vos outils personnalisés et nous vous transmettrons un devis détaillé.</description>
+      <guid>/cv/</guid>
+      <description>  </description>
     </item>
     
     <item>
-      <title>Présentation de notre activité</title>
-      <link>homepage/homepage/</link>
+      <title>matlab-functions-in-r</title>
+      <link>/1/01/01/matlab-functions-in-r/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>homepage/homepage/</guid>
-      <description>Services Nous proposons des services personnalisés d’analyse de données de type variés. Nous développons des solutions adaptées et spécifiques à chaque demande.
- Visualisations de données complexes Extraction et mise en forme automatique Analyse dynamique sur applications Shiny Utilisation de modèles de machine learning et deep learning Interface intuitive et facile d’accès  Des exemples d’outils que nous proposons sont disponibles ici
- A qui s’adressent nos services ?</description>
+      <guid>/1/01/01/matlab-functions-in-r/</guid>
+      <description>Introduction As someone who learned to do data science using Matlab, there are a few functions which I found extremely convenient in those days that did not have a direct equivalent in R. Two of them are the clear and clearvars functions.
+First of all, I know that in Rstudio the broomstick in the “Environment” part of the UI does exactly what clear does: removing all variables from the workspace.</description>
+    </item>
+    
+    <item>
+      <title>Prise de contact</title>
+      <link>/contact/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/contact/</guid>
+      <description>Merci d’adresser toute demande à l’email suivant: alix.tiran.cappello@gmail.com</description>
+    </item>
+    
+    <item>
+      <title>Présentation</title>
+      <link>/homepage/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/homepage/</guid>
+      <description>Qui suis-je ? Je m’appelle Alix Tiran-Cappello et je suis titulaire d’un doctorat en neurosciences de l’université d’Aix-Marseille et j’ai pu bénéficier d’un post-docorat d’un an aux Etats-Unis à l’université Northwestern à Chicago. Durant ces nombreuses années à travailler sur des sujets complexes en neurosciences, j’ai pu créer plusieurs solutions d’analyses pour des problèmes variés : - analyses de données comportementales - de l’activité neuronales via différentes modalités incluant l’utilisation de nouvelles méthodes statistiques.</description>
     </item>
     
   </channel>

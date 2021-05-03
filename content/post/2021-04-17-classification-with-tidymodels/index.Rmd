@@ -51,19 +51,19 @@ credit %>%
 
 Now for each categorical factor let's have a look at the fraction of the default credit `2` to determine what are some of the most important features to predict whether the credit will be reimbursed or not.
 
-```{r}
+```{r, fig.height= 10}
 credit <- credit %>% 
   mutate(across(.cols = c(existing_credits, installment_rate, residence_history), .fns = factor))
 
 credit %>% 
-  select(!is.numeric) %>% 
+  select(where(~!is.numeric(.x))) %>% 
   pivot_longer(cols = c(everything(), -default)) %>% 
   group_by(default, name) %>% 
   count(value) %>% 
   group_by(name,value) %>% 
   mutate(frac = n / sum(n) * 100) %>% 
   ggplot(aes(value, frac, fill = default)) + geom_col() + 
-  coord_flip() + facet_wrap(~name, ncol = 3, scales = "free")
+  coord_flip() + facet_wrap(~name, ncol = 3, scales = "free") 
   
 ```
 
@@ -74,7 +74,8 @@ Now that we have a better idea of what are the data, we can start modelling to t
 ## Classification with decision tree
 We will begin with a simple classification tree model, but first we have to split the data for the final evaluation.
 ```{r}
-indexes <-initial_split(credit, prop = 0.9)
+set.seed(31)
+indexes <-initial_split(credit, prop = 0.85, strata = default)
 training <- training(indexes)
 test <- testing(indexes)
 ```
@@ -130,6 +131,7 @@ glm_fit %>%
 ```
 
 In this 2nd model the evaluation metrics indicates a much better detection of default cases and a similar performance regarding non defaulting credit. Overall this second model seems much more efficient to predict the future of a contracted loan, as shown by the differences of the area under curve for the ROC curve plots.
+
 
 <!-- Let's see if we can improve the prediction with a more sophisticated approach. -->
 

@@ -50,24 +50,14 @@ But first let’s have a more detailed look on the numerical variables depending
   mutate(across(.cols = c(existing_credits, installment_rate, residence_history), .fns = factor))
 
 credit %&gt;% 
-  select(!is.numeric) %&gt;% 
+  select(where(~!is.numeric(.x))) %&gt;% 
   pivot_longer(cols = c(everything(), -default)) %&gt;% 
   group_by(default, name) %&gt;% 
   count(value) %&gt;% 
   group_by(name,value) %&gt;% 
   mutate(frac = n / sum(n) * 100) %&gt;% 
   ggplot(aes(value, frac, fill = default)) + geom_col() + 
-  coord_flip() + facet_wrap(~name, ncol = 3, scales = &quot;free&quot;)</code></pre>
-<pre><code>## Warning: Predicate functions must be wrapped in `where()`.
-## 
-##   # Bad
-##   data %&gt;% select(is.numeric)
-## 
-##   # Good
-##   data %&gt;% select(where(is.numeric))
-## 
-## ℹ Please update your code.
-## This message is displayed once per session.</code></pre>
+  coord_flip() + facet_wrap(~name, ncol = 3, scales = &quot;free&quot;) </code></pre>
 <p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
 <p>From the look of it, the conditions that show a higher proportion of credit default are located inside variables such as “credit_history”, “checking_balance”, “foreign_worker”. This indicates that not very surprisingly people with a low account balance, with fewer property, or bad credit records are more likely to default.</p>
 <p>Now that we have a better idea of what are the data, we can start modelling to try to predict the outcome of a credit when it’s contracted.</p>
@@ -75,7 +65,8 @@ credit %&gt;%
 <div id="classification-with-decision-tree" class="section level2">
 <h2>Classification with decision tree</h2>
 <p>We will begin with a simple classification tree model, but first we have to split the data for the final evaluation.</p>
-<pre class="r"><code>indexes &lt;-initial_split(credit, prop = 0.9)
+<pre class="r"><code>set.seed(31)
+indexes &lt;-initial_split(credit, prop = 0.85, strata = default)
 training &lt;- training(indexes)
 test &lt;- testing(indexes)</code></pre>
 <p>Here is the model definition:</p>
@@ -96,26 +87,26 @@ confusionMatrix(results$.pred_class, results$truth)</code></pre>
 ## 
 ##           Reference
 ## Prediction  1  2
-##          1 62 14
-##          2 12 11
+##          1 88 25
+##          2 17 20
 ##                                           
-##                Accuracy : 0.7374          
-##                  95% CI : (0.6393, 0.8207)
-##     No Information Rate : 0.7475          
-##     P-Value [Acc &gt; NIR] : 0.6419          
+##                Accuracy : 0.72            
+##                  95% CI : (0.6409, 0.7902)
+##     No Information Rate : 0.7             
+##     P-Value [Acc &gt; NIR] : 0.3316          
 ##                                           
-##                   Kappa : 0.2854          
+##                   Kappa : 0.2977          
 ##                                           
-##  Mcnemar&#39;s Test P-Value : 0.8445          
+##  Mcnemar&#39;s Test P-Value : 0.2801          
 ##                                           
-##             Sensitivity : 0.8378          
-##             Specificity : 0.4400          
-##          Pos Pred Value : 0.8158          
-##          Neg Pred Value : 0.4783          
-##              Prevalence : 0.7475          
-##          Detection Rate : 0.6263          
-##    Detection Prevalence : 0.7677          
-##       Balanced Accuracy : 0.6389          
+##             Sensitivity : 0.8381          
+##             Specificity : 0.4444          
+##          Pos Pred Value : 0.7788          
+##          Neg Pred Value : 0.5405          
+##              Prevalence : 0.7000          
+##          Detection Rate : 0.5867          
+##    Detection Prevalence : 0.7533          
+##       Balanced Accuracy : 0.6413          
 ##                                           
 ##        &#39;Positive&#39; Class : 1               
 ## </code></pre>
@@ -145,26 +136,26 @@ confusionMatrix(res_glm$.pred_class, res_glm$truth)</code></pre>
 ## 
 ##           Reference
 ## Prediction  1  2
-##          1 71 14
-##          2  3 11
+##          1 92 22
+##          2 13 23
 ##                                           
-##                Accuracy : 0.8283          
-##                  95% CI : (0.7394, 0.8967)
-##     No Information Rate : 0.7475          
-##     P-Value [Acc &gt; NIR] : 0.03740         
+##                Accuracy : 0.7667          
+##                  95% CI : (0.6907, 0.8318)
+##     No Information Rate : 0.7             
+##     P-Value [Acc &gt; NIR] : 0.04286         
 ##                                           
-##                   Kappa : 0.4676          
+##                   Kappa : 0.4108          
 ##                                           
-##  Mcnemar&#39;s Test P-Value : 0.01529         
+##  Mcnemar&#39;s Test P-Value : 0.17630         
 ##                                           
-##             Sensitivity : 0.9595          
-##             Specificity : 0.4400          
-##          Pos Pred Value : 0.8353          
-##          Neg Pred Value : 0.7857          
-##              Prevalence : 0.7475          
-##          Detection Rate : 0.7172          
-##    Detection Prevalence : 0.8586          
-##       Balanced Accuracy : 0.6997          
+##             Sensitivity : 0.8762          
+##             Specificity : 0.5111          
+##          Pos Pred Value : 0.8070          
+##          Neg Pred Value : 0.6389          
+##              Prevalence : 0.7000          
+##          Detection Rate : 0.6133          
+##    Detection Prevalence : 0.7600          
+##       Balanced Accuracy : 0.6937          
 ##                                           
 ##        &#39;Positive&#39; Class : 1               
 ## </code></pre>
