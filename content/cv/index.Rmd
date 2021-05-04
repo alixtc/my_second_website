@@ -1,5 +1,5 @@
 ---
-title: CV
+title: 
 author: ATC
 date: []
 slug: cv
@@ -7,4 +7,5 @@ categories: []
 tags: []
 ---
  
-![]("CV Tiran-Cappello Alix - Data scientist.pdf")
+
+<div align="center"><iframe src="CV Tiran-Cappello Alix - Data scientist.pdf" height="1600" width="1000"></iframe></div>

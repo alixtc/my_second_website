@@ -6,7 +6,17 @@
     <description>Recent content on A Hugo website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 17 Apr 2021 00:00:00 +0000</lastBuildDate><atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 04 May 2021 00:00:00 +0000</lastBuildDate><atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Diabete prediction using deep learning</title>
+      <link>/2021/05/04/diabete-prediction-using-deep-learning/</link>
+      <pubDate>Tue, 04 May 2021 00:00:00 +0000</pubDate>
+      
+      <guid>/2021/05/04/diabete-prediction-using-deep-learning/</guid>
+      <description>We will see in this example how to use a neural network to predict the apparition of a case of diabete based on several predictor variables such as glucose concentration in the blood test, blood pressure, age, number of pregnencies, levels of insulin… In the column Outcome, a 1 corresponds to a diagnosed a diabete case.
+library(tidyverse) library(tidymodels) library(keras) diabetes &amp;lt;- read_csv(&amp;quot;diabetes.csv&amp;quot;) predvars &amp;lt;- c(&amp;quot;Pregnancies&amp;quot;, &amp;quot;Glucose&amp;quot;, &amp;quot;BloodPressure&amp;quot;, &amp;quot;BMI&amp;quot;, &amp;quot;DiabetesPedigreeFunction&amp;quot;) df &amp;lt;- diabetes %&amp;gt;% select(Outcome, Pregnancies:Age) head(diabetes) ## # A tibble: 6 x 9 ## Pregnancies Glucose BloodPressure SkinThickness Insulin BMI DiabetesPedigre… ## &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; ## 1 6 148 72 35 0 33.</description>
+    </item>
+    
     <item>
       <title>Classification with Tidymodels</title>
       <link>/2021/04/17/classification-with-tidymodels/</link>
@@ -53,19 +63,19 @@ Besides the lame jokes, it took me ages to figure out what was actually going ar
     
     <item>
       <title></title>
-      <link>/shiny/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/shiny/</guid>
-      <description>  </description>
-    </item>
-    
-    <item>
-      <title>CV</title>
       <link>/cv/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>/cv/</guid>
+      <description>    </description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>/shiny/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/shiny/</guid>
       <description>  </description>
     </item>
     

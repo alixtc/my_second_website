@@ -1,0 +1,132 @@
+---
+title: Diabete prediction using deep learning
+author: ATC
+date: '2021-05-04'
+slug: diabete-prediction-using-deep-learning
+categories: []
+tags: []
+---
+
+We will see in this example how to use a neural network to predict the apparition of a case of diabete based on several predictor variables such as glucose concentration in the blood test, blood pressure, age, number of pregnencies, levels of insulin... In the column `Outcome`, a 1 corresponds to a diagnosed a diabete case.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(keras)
+
+diabetes <- read_csv("diabetes.csv")
+predvars <- c("Pregnancies", "Glucose", "BloodPressure", "BMI", "DiabetesPedigreeFunction")
+
+df <- diabetes %>%  select(Outcome, Pregnancies:Age)
+
+head(diabetes)
+
+```
+First the dataset is split into a training and testing dataset, beside the `Outcome` column is set aside in both cases for a easier manipulations and to avoid unwanted modifications of the variable to predict.
+
+```{r}
+set.seed(87654)
+# Spliting data using tidymodels functions.
+indexes <- initial_split(df, prop = 0.9, strata = Outcome)
+training <- training(indexes)
+testing <- testing(indexes)
+
+# Isolate target variable from the predictor variables.
+x_training <- training[,-1]
+y_training <- training[, 1]
+
+x_test <- testing[, -1]
+y_test <- testing[, 1]
+```
+
+The data in each column training and testing sets are then normalized according to the mean and standard deviation of the training set. Since all data that go through a neural network must be subjected to the same preprocessing steps, it is important that mean and SD are defined by the training set especially if the testing set present a class imbalance or contains a large proportion of outliers values that could potentially change drastically the preprocessing steps and thus the prediction of the model.
+
+```{r}
+m_means <- map_dbl(x_training, mean)
+std <- map_dbl(x_training, sd)
+x_training <- scale(x_training, center = m_means, scale = std)
+
+x_test <- scale(x_test, center = m_means, scale = std)
+y_test <- as.matrix(y_test)
+```
+
+### Build a simple NN model
+
+This model is a simple dense NN, with a few neurons in each layer, the different layers are separated by a drop out layer to limit the overfitting. The last layer is composed of a single neuron with a sigmoid for the function of activation, which allow to detect between the two possible outcomes in our case of a binary classification.
+
+```{r}
+model <- keras_model_sequential() %>% 
+  layer_dense(units = 64, input_shape = c(ncol(x_training)), activation = "relu") %>% 
+  layer_dropout(0.3) %>% 
+  layer_dense(units = 32, activation = "relu") %>% 
+  layer_dropout(0.3) %>% 
+  layer_dense(units = 1, activation = "sigmoid") 
+
+model %>% compile(
+  optimizer = "adam",
+  loss = "binary_crossentropy",
+  metrics = "accuracy"
+)
+
+```
+
+Because here we have very little data to work with, in order to train the network we will rely on a resampling strategy during the training. This method known as k-fold cross-valisation consists in dividing the training dataset into k fractions (or folds), and then in setting aside one of the fraction of the data for validation, while training the network on the k-1 remaining folds. The process is repeated until all folds have been used for validation.
+
+### definition of folds and training
+```{r}
+set.seed(3467)
+kfolds <- 5
+splits <- sample(1:kfolds, size = nrow(x_training), replace = TRUE)
+globalhist <- list()
+for(i in 1:kfolds){
+  x_train_partial<- x_training[splits != i, ]
+  y_train_partial<- as.matrix(y_training[splits != i,])
+  
+  x_val <- x_training[splits == i, ]
+  y_val <- as.matrix(y_training[splits == i,])
+  
+  cat("\n", "K-fold number:", i, "\n\n")
+  
+  history <- model %>% fit(
+    x_train_partial,
+    y_train_partial,
+    epochs = 7,
+    batch_size = 1,
+    validation_data = list(x_val, y_val),
+    verbose = 0
+  )
+  
+  globalhist[[i]] <- history$metrics
+}
+
+```
+
+### Plot whole history
+This part allows to have a look at how the model accuracy evolves during the training part. It aims to identify overfitting trends.
+
+```{r}
+finalhistory <- map(transpose(globalhist), unlist)
+finalhistory <- as_tibble(finalhistory)
+# Add epochs
+finalhistory$epochs <- 1:nrow(finalhistory)
+finalhistory %>% 
+  pivot_longer(c(loss, val_loss, accuracy, val_accuracy), 
+               names_to = "keys",
+               values_to = "values") %>%
+  mutate( loss =  case_when( str_detect(keys, "loss") ~ "loss",
+                             TRUE ~ "accuracy"),
+          step = case_when(str_detect(keys, "val") ~ "validation",
+                           TRUE ~ "training")) %>% 
+  ggplot(aes(x = epochs, y = values, color = step)) + 
+  geom_point() + 
+  geom_line() + 
+  facet_grid(rows =vars(loss), scales = "free")
+```
+
+And finally the overall performance of the model is calculated.
+
+```{r}
+# Evaluate model
+model %>% evaluate(x_test, y_test)
+```
+We get an overall accuracy above 80% in the test phase, not too bad ! It could be proably even better with a little bit of work around the different parameters such as the number of epochs, number of folds, or units per layer in the model.
