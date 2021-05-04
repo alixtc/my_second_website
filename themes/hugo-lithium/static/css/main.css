@@ -34,7 +34,6 @@ img {
 }
 
 .wrapper {
-  max-width: 900px;
   overflow: hidden;
   position: relative;
 }
@@ -47,7 +46,7 @@ img {
 }
 
 .nav {
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 0 15px;
   text-align: right;
@@ -96,7 +95,7 @@ img {
 }
 
 .content {
-  max-width: 900px;
+  max-width: 700px;
   margin: 40px auto 10px;
   padding: 0 15px;
   font-size: 16px;
