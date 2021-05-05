@@ -1,0 +1,101 @@
+---
+title: Spam text identification
+author: ATC
+date: '2021-05-05'
+slug: spam-text-identification
+categories: []
+tags: []
+---
+The following example is simple attempt to classify received text messages as either "spam" or valid text "ham". This example is interesting as it deals with some simple concepts of machine learning but also some processing for natural languages. This post has been mainly inspired by a chapter in the book "Machine Learning with R" by Brett Lantz, with a slightly different approach by relying mostly on Tidymodels and Tidyverse syntax.
+
+The purpose is to use a naive Bayes classifier to determine whether or not the incoming message should be allowed.
+
+First we will load the main packages to handle the data.
+
+```{r, message=FALSE}
+library(RCurl)
+library(tidyverse)
+library(tidymodels)
+```
+Let's download the data from the publisher repository and have a brief look at the data.
+```{r}
+sms_raw <- getURL("https://raw.githubusercontent.com/PacktPublishing/Machine-Learning-with-R-Third-Edition/master/Chapter04/sms_spam.csv")
+sms_raw <- read_csv(sms_raw)
+head(sms_raw)
+```
+We have 2 columns, one called `type` containing the classification of the text message "ham"/"spam" and the second `text` containing the text message itself. We will first convert the first column to a factor. In a second time we split the data between into training and testing sets.
+
+```{r}
+sms_raw$type <- factor(sms_raw$type)
+
+set.seed(123)
+split <- initial_split(sms_raw, prop = 0.8, strata = "type")
+nb_train_sms <- training(split)
+nb_test_sms <- testing(split)
+```
+
+Because the text data contains unnecessary information, such as punctuation marks (.;:,...), stop words (the, is, at, which,...) they have to be removed from the analysis. Similarly, many numbers also appear only once as they are phone number, and thus are not useful for the classifier to identify patterns and generalizing feature, so they will be removed as well.
+
+First let's load the packages for text processing.
+
+```{r, message=FALSE}
+library(textrecipes)
+library(tm) 
+library(discrim)
+```
+
+Note: The loaded packages contains many functions that allow the user to deal easily with this kind of issues. Although `tm` and `discrim` packages can be used on their own with base R as describe in  the chapter 4 of "Machine Learning with R". We will use them inside a tidymodel workflow to mimic the preprocessing steps but they are some equivalent functions inside the `textrecipes` package.
+
+```{r}
+# Text preprocessing
+reci_sms <- 
+  recipe(type ~.,
+         data = nb_train_sms) %>% 
+  step_mutate(text = str_to_lower(text)) %>% 
+  step_mutate(text = removeNumbers(text)) %>% 
+  step_mutate(text = removePunctuation(text)) %>% 
+  step_tokenize(text) %>% 
+  step_stopwords(text, custom_stopword_source = stopwords()) %>% 
+  step_stem(text) %>% 
+  step_tokenfilter(text, min_times = 6, max_tokens = 1500) %>% 
+  step_tf(text, weight_scheme = "binary")  %>% 
+  step_mutate_at(contains("tf"), fn = function(x){ifelse(x == TRUE, "Yes", "No")})
+```
+
+The first 3 steps of the recipes are here to switch all texts messages to lower case and remove numbers and punctuation marks as announced earlier.
+
+Then we start using some of the functions of `textrecipes`. The first one `step_tokenize` consists in initializing the tokenisation of the text, meaning splitting it into smaller units that can be analyzed easily. Here the tokens are words but they could be letters, group of words, syllabs... This is followed by a step to remove all stop words from the text message as they have little to no meaningful value.
+
+`step_stem()`converts the token i.e. the words that are derived from a common origin to a simpler form, for example "learned", "learns" are simplified in "learn".
+
+The filtering of tokens keeps only the words that appear at least 6 times inside the whole corpus. This is done to remove occurences of words that do not appear ofter enough to yield any potential to identify general classification rules.
+
+Finally the data are converted to a long format with `step_tf` where each column corresponds to a token and if the word appear in a given text message the corresponding value will be set to 1. If the word does not appear, the value will be 0.
+
+Ultimately the last line converts these 0 and 1 to "No" and "Yes" respectively as Naive Bayes classifier deals more easily with factors rather than numbers.
+
+The data end up looking like this, a dataframe with a lot of zeros and some sparse ones.
+
+```{r}
+head(juice(prep(reci_sms)))
+```
+
+Finally we prepare the model for a classification using NaiveBayes. The model is first defined then included inside a workflow where the preprocessing steps are defined by the recipe we wrote earlier on. In the end the model is fit on the training dataset.
+
+```{r}
+nb_model <- naive_Bayes() %>% 
+  set_engine("klaR") 
+
+nb_fit <- workflow() %>%
+  add_model(nb_model) %>%
+  add_recipe(reci_sms) %>%
+  fit(data = nb_train_sms)
+```
+We can then use the fitted model to predict the nature of text messages in the testing dataset. 
+
+```{r, warning=FALSE, message=FALSE}
+nb_tidy_pred <- nb_fit %>% predict(nb_test_sms)
+nb_tidy_pred<- nb_tidy_pred %>% bind_cols(truth = nb_test_sms$type) 
+caret::confusionMatrix(nb_tidy_pred$.pred_class, nb_tidy_pred$truth)
+```
+We get an overall accuracy above 95 which is pretty good. Also we have very few good messages beeing incorrectly classified as "spam" which could potentially be troublesome as this might lead the person to ignore potentially important message. But nonetheless it's still a effective way to discriminate spam text with relatively simple code and very little engineering of the data.
