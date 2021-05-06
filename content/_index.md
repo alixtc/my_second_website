@@ -1,6 +1,6 @@
 
 ## Qui suis-je ?
-Je m'appelle Alix Tiran-Cappello et je suis titulaire d'un doctorat en neurosciences de l'université d'Aix-Marseille et j'ai pu bénéficier d'un post-docorat d'un an aux Etats-Unis à l'université Northwestern à Chicago. Durant ces nombreuses années à travailler sur des sujets complexes en neurosciences, j'ai pu créer plusieurs solutions d'analyses pour des problèmes variés : 
+Je m'appelle Alix Tiran-Cappello et je suis titulaire d'un doctorat en neurosciences de l'université d'Aix-Marseille et j'ai pu bénéficier d'un post-docorat d'un an aux Etats-Unis à l'université Northwestern à Chicago. Durant ces nombreuses années à travailler sur des sujets complexes en neurosciences, j'ai pu utiliser et maitriser plusieurs solutions d'analyses pour des problèmes variés : 
 
   - analyses de données comportementales
   - de l'activité neuronales via différentes modalités incluant l'utilisation de nouvelles méthodes statistiques.
