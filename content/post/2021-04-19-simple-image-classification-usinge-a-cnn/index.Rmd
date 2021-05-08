@@ -18,17 +18,20 @@ digits <- dataset_mnist()
 c(c(traindigits, trainlabels), c(testdigits, testlabels)) %<-% digits
 ```
 
-These are the corresponding classes (labels) for each type of pictures:
-0 T-shirt/top
-1 Trouser
-2 Pullover
-3 Dress
-4 Coat
-5 Sandal
-6 Shirt
-7 Sneaker
-8 Bag
-9 Ankle boot
+The data is composed of hand-written digits in the range 0-9. Each digit is represent by a 28x28 pixel grayscale image and the label associated with the image is the corresponding number. The data look like this:
+
+```{r, echo = FALSE}
+par(mfcol=c(5,5))
+par(mar=c(0, 0, 1.5, 0), xaxs='i', yaxs='i')
+for (i in 1:25) { 
+  img <- traindigits[i, , ]
+  img <- t(apply(img, 2, rev)) 
+  image(
+    1:28, 1:28, img, col = gray((0:255)/255), xaxt = 'n', yaxt = 'n'
+    )
+}
+```
+
 
 It is necessary to encode the data in a tensor of rank 4. The first dimension corresponds to the number of the observation, the 2nd and 3rd corresponds to the X and Y axis of the pictures, meaning its height and width, while the 4th dimension corresponds to the channels (1 per color type in the picture). Here we have monochrome pictures, thus the 4th dimension will be equal to 1, if we were to work with RGB pictures it would be equal to 3.
 By dividing by 255, we ensure that the data are normalized in the range [0:1].
@@ -43,6 +46,7 @@ testdigits <- testdigits / 255
 ```
 
 In order to perform the multi-classification it is necessary for each label to be one-hot-encoded, which creates one column per class, and for a given observation the column associated to the actual class will contain the value 1, while all the other columns are set to 0.
+
 
 ```{r}
 trainlabels <- to_categorical(trainlabels)
@@ -110,4 +114,4 @@ cf <- caret::confusionMatrix(factor(results - 1), factor(truth))
 cf
 ```
 
-Overall we get a really good performance across all classes even though the error rate is a little higher for items such as "bag" and "sneakers". It is possible in thsi case that some exotic designs make the prediction a little less reliable.
+Overall we get a really good performance across all classes even though the error rate is a little higher for numbers such as 7 and 8. 

@@ -41,7 +41,7 @@ Par ailleurs durant plusieurs année de thèses et de post-doc, j'ai pu progress
   - Bonne connaissance des bonnes pratiques en machine learnning
 
 ## Approche technique
-La plupart des outils que nous proposés sont basés sur le logiciel R. Il s'agit d'un logiciel d'analyse et de calcul statistique gratuit et en accès libre. De nombreux formats de données sont facilement importables et utilisables directement via de nombreuses extensions développées en accès libre.
+La plupart des outils présentés ici sont basés sur le logiciel R. Il s'agit d'un logiciel d'analyse et de calcul statistique gratuit et en accès libre. De nombreux formats de données sont facilement importables et utilisables directement via de nombreuses extensions développées en accès libre.
 
 R permet aussi de développer des interfaces interactives complètes en utilisant l'extension Shiny permettant à l'utilisateur de choisir le type d'analyses à conduire, différents modes de visualisation, et d'exporter les données traitées. [Des exemples de simples applications sont disponibles ici](https://site.atc-data.fr/shiny/)
 
