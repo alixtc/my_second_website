@@ -27,6 +27,16 @@ library(tidyverse) library(tidymodels) library(keras) diabetes &amp;lt;- read_cs
     </item>
     
     <item>
+      <title>Simple image classification usinge a CNN</title>
+      <link>/2021/04/19/simple-image-classification-usinge-a-cnn/</link>
+      <pubDate>Mon, 19 Apr 2021 00:00:00 +0000</pubDate>
+      
+      <guid>/2021/04/19/simple-image-classification-usinge-a-cnn/</guid>
+      <description>This post describes a simple way to perform multi-class classification using a convolutional neural networl (CNN). The data is composed of 60 000 images of clothing of 10 types (shoes, T-shirt, pants…). The purpose of the exercice is to accurately classify the testing dataset composed of another 10 000 of these types of pictures
+First we have to download the data. Fortunately there is a built-in function in Keras for training purposes.</description>
+    </item>
+    
+    <item>
       <title>Classification with Tidymodels</title>
       <link>/2021/04/17/classification-with-tidymodels/</link>
       <pubDate>Sat, 17 Apr 2021 00:00:00 +0000</pubDate>

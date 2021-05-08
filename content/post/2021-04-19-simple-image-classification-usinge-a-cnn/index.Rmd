@@ -1,0 +1,113 @@
+---
+title: Simple image classification usinge a CNN
+author: ATC
+date: '2021-04-19'
+slug: simple-image-classification-usinge-a-cnn
+categories: []
+tags: []
+---
+This post describes a simple way to perform multi-class classification using a convolutional neural networl (CNN). The data is composed of 60 000 images of clothing of 10 types (shoes, T-shirt, pants...). The purpose of the exercice is to accurately classify the testing dataset composed of another 10 000 of these types of pictures
+
+First we have to download the data. Fortunately there is a built-in function in `Keras` for training purposes.
+
+
+
+```{r}
+library(keras)
+digits <- dataset_mnist()
+c(c(traindigits, trainlabels), c(testdigits, testlabels)) %<-% digits
+```
+
+These are the corresponding classes (labels) for each type of pictures:
+0 T-shirt/top
+1 Trouser
+2 Pullover
+3 Dress
+4 Coat
+5 Sandal
+6 Shirt
+7 Sneaker
+8 Bag
+9 Ankle boot
+
+It is necessary to encode the data in a tensor of rank 4. The first dimension corresponds to the number of the observation, the 2nd and 3rd corresponds to the X and Y axis of the pictures, meaning its height and width, while the 4th dimension corresponds to the channels (1 per color type in the picture). Here we have monochrome pictures, thus the 4th dimension will be equal to 1, if we were to work with RGB pictures it would be equal to 3.
+By dividing by 255, we ensure that the data are normalized in the range [0:1].
+
+
+
+```{r}
+traindigits <- array_reshape(traindigits, c(60000, 28, 28, 1))
+traindigits <- traindigits / 255
+testdigits <- array_reshape(testdigits, c(10000, 28, 28, 1))
+testdigits <- testdigits / 255
+```
+
+In order to perform the multi-classification it is necessary for each label to be one-hot-encoded, which creates one column per class, and for a given observation the column associated to the actual class will contain the value 1, while all the other columns are set to 0.
+
+```{r}
+trainlabels <- to_categorical(trainlabels)
+testlabels <- to_categorical(testlabels)
+head(trainlabels)
+```
+
+We set up the CNN as a succession of convolutional layers, in which the parameter "filters" corresponds to the number of neurons, and "kernel_size" is the size of the filter that we apply on each image. Here the filter has a shape of 3x3 pixels. The neurons in the convolutional layers will follow a "relu" function for their activation.
+
+The shape of the input has to be specified for the first layer of the network as usual. Here we only need to specify the dimension of the pictures and the number of channels (all the dimension execpt the first that corresponds to the observations).
+
+```{r}
+model <- keras_model_sequential() %>% 
+  layer_conv_2d(filters = 32,
+                kernel_size = c(3, 3),
+                activation = "relu",
+                input_shape = c(28, 28, 1)) %>%
+  layer_max_pooling_2d(pool_size = c(2,2)) %>%
+  layer_conv_2d(filters = 32,
+                kernel_size = c(3, 3),
+                activation = "relu") %>%
+  layer_flatten() %>% 
+  layer_dense(units = 32, activation = "relu") %>% 
+  layer_dense(units = 10, activation = "softmax")
+```
+
+The final layers of the network consist in simple dense layers. However the last layer has to be composed of exactly one unit (one neuron) per class, here we have 10 of them, and have to be activated by a "softmax" function that will scale the sum of all probalities for a given observation to one. This will allow the selection of the most probable class.
+
+Then we set up the compilation for the model, with a loss for a classification (we could have used "sparse_categorical_crossentropy" as well but since the number of classes is limited it should yield very similar results.)
+
+The optimizer "adam" and the "accuracy" metric are here good default choices for a classification problem.
+
+```{r}
+model %>% compile(loss = "categorical_crossentropy",
+                  optimizer = "adam",
+                  metrics = "accuracy")
+```
+
+Finally we fit the whole model by using randomly 15% of the training data for evaluatuin of our model during the training part.
+
+```{r}
+model %>% fit(traindigits,
+              trainlabels,
+              epochs = 10,
+              batch_size = 1000,
+              validation_split = 0.15)
+```
+
+Now we only have to evalute the model using the testing dataset.
+
+```{r}
+model %>% evaluate(testdigits, testlabels)
+```
+
+With an accuracy around ~98% the model does actually a pretty good job at classifying the data. If we wanted to have a more detailed look at how good it is at predicting the different classes we could get the prediction and use a confusion matrix.
+
+```{r}
+# extract the probabilities associated with each class
+results <- model %>% predict(testdigits) 
+# Keep the highest probability as the prediction
+results <- apply(results, MARGIN = 1, FUN = function(x){which( x == max(x))})
+# retrieve the original labels for the test sets + start at 1 (instead of 0)
+truth <- as.integer( digits$test$y)
+cf <- caret::confusionMatrix(factor(results - 1), factor(truth))
+cf
+```
+
+Overall we get a really good performance across all classes even though the error rate is a little higher for items such as "bag" and "sneakers". It is possible in thsi case that some exotic designs make the prediction a little less reliable.

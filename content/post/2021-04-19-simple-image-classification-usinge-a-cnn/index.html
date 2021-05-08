@@ -1,0 +1,131 @@
+---
+title: Simple image classification usinge a CNN
+author: ATC
+date: '2021-04-19'
+slug: simple-image-classification-usinge-a-cnn
+categories: []
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>This post describes a simple way to perform multi-class classification using a convolutional neural networl (CNN). The data is composed of 60 000 images of clothing of 10 types (shoes, T-shirt, pants…). The purpose of the exercice is to accurately classify the testing dataset composed of another 10 000 of these types of pictures</p>
+<p>First we have to download the data. Fortunately there is a built-in function in <code>Keras</code> for training purposes.</p>
+<pre class="r"><code>library(keras)
+digits &lt;- dataset_mnist()
+c(c(traindigits, trainlabels), c(testdigits, testlabels)) %&lt;-% digits</code></pre>
+<p>These are the corresponding classes (labels) for each type of pictures:
+0 T-shirt/top
+1 Trouser
+2 Pullover
+3 Dress
+4 Coat
+5 Sandal
+6 Shirt
+7 Sneaker
+8 Bag
+9 Ankle boot</p>
+<p>It is necessary to encode the data in a tensor of rank 4. The first dimension corresponds to the number of the observation, the 2nd and 3rd corresponds to the X and Y axis of the pictures, meaning its height and width, while the 4th dimension corresponds to the channels (1 per color type in the picture). Here we have monochrome pictures, thus the 4th dimension will be equal to 1, if we were to work with RGB pictures it would be equal to 3.
+By dividing by 255, we ensure that the data are normalized in the range [0:1].</p>
+<pre class="r"><code>traindigits &lt;- array_reshape(traindigits, c(60000, 28, 28, 1))
+traindigits &lt;- traindigits / 255
+testdigits &lt;- array_reshape(testdigits, c(10000, 28, 28, 1))
+testdigits &lt;- testdigits / 255</code></pre>
+<p>In order to perform the multi-classification it is necessary for each label to be one-hot-encoded, which creates one column per class, and for a given observation the column associated to the actual class will contain the value 1, while all the other columns are set to 0.</p>
+<pre class="r"><code>trainlabels &lt;- to_categorical(trainlabels)
+testlabels &lt;- to_categorical(testlabels)
+head(trainlabels)</code></pre>
+<pre><code>##      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+## [1,]    0    0    0    0    0    1    0    0    0     0
+## [2,]    1    0    0    0    0    0    0    0    0     0
+## [3,]    0    0    0    0    1    0    0    0    0     0
+## [4,]    0    1    0    0    0    0    0    0    0     0
+## [5,]    0    0    0    0    0    0    0    0    0     1
+## [6,]    0    0    1    0    0    0    0    0    0     0</code></pre>
+<p>We set up the CNN as a succession of convolutional layers, in which the parameter “filters” corresponds to the number of neurons, and “kernel_size” is the size of the filter that we apply on each image. Here the filter has a shape of 3x3 pixels. The neurons in the convolutional layers will follow a “relu” function for their activation.</p>
+<p>The shape of the input has to be specified for the first layer of the network as usual. Here we only need to specify the dimension of the pictures and the number of channels (all the dimension execpt the first that corresponds to the observations).</p>
+<pre class="r"><code>model &lt;- keras_model_sequential() %&gt;% 
+  layer_conv_2d(filters = 32,
+                kernel_size = c(3, 3),
+                activation = &quot;relu&quot;,
+                input_shape = c(28, 28, 1)) %&gt;%
+  layer_max_pooling_2d(pool_size = c(2,2)) %&gt;%
+  layer_conv_2d(filters = 32,
+                kernel_size = c(3, 3),
+                activation = &quot;relu&quot;) %&gt;%
+  layer_flatten() %&gt;% 
+  layer_dense(units = 32, activation = &quot;relu&quot;) %&gt;% 
+  layer_dense(units = 10, activation = &quot;softmax&quot;)</code></pre>
+<p>The final layers of the network consist in simple dense layers. However the last layer has to be composed of exactly one unit (one neuron) per class, here we have 10 of them, and have to be activated by a “softmax” function that will scale the sum of all probalities for a given observation to one. This will allow the selection of the most probable class.</p>
+<p>Then we set up the compilation for the model, with a loss for a classification (we could have used “sparse_categorical_crossentropy” as well but since the number of classes is limited it should yield very similar results.)</p>
+<p>The optimizer “adam” and the “accuracy” metric are here good default choices for a classification problem.</p>
+<pre class="r"><code>model %&gt;% compile(loss = &quot;categorical_crossentropy&quot;,
+                  optimizer = &quot;adam&quot;,
+                  metrics = &quot;accuracy&quot;)</code></pre>
+<p>Finally we fit the whole model by using randomly 15% of the training data for evaluatuin of our model during the training part.</p>
+<pre class="r"><code>model %&gt;% fit(traindigits,
+              trainlabels,
+              epochs = 10,
+              batch_size = 1000,
+              validation_split = 0.15)</code></pre>
+<p>Now we only have to evalute the model using the testing dataset.</p>
+<pre class="r"><code>model %&gt;% evaluate(testdigits, testlabels)</code></pre>
+<pre><code>##      loss  accuracy 
+## 0.0511968 0.9838000</code></pre>
+<p>With an accuracy around ~98% the model does actually a pretty good job at classifying the data. If we wanted to have a more detailed look at how good it is at predicting the different classes we could get the prediction and use a confusion matrix.</p>
+<pre class="r"><code># extract the probabilities associated with each class
+results &lt;- model %&gt;% predict(testdigits) 
+# Keep the highest probability as the prediction
+results &lt;- apply(results, MARGIN = 1, FUN = function(x){which( x == max(x))})
+# retrieve the original labels for the test sets + start at 1 (instead of 0)
+truth &lt;- as.integer( digits$test$y)
+cf &lt;- caret::confusionMatrix(factor(results - 1), factor(truth))
+cf</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    0    1    2    3    4    5    6    7    8    9
+##          0  974    0    3    0    1    1    7    1    5    1
+##          1    0 1122    1    0    0    0    3    0    0    2
+##          2    1    1  998    0    1    1    0    2    2    0
+##          3    0    3    6  994    0    3    0    2    1    3
+##          4    0    0    2    0  972    0    3    0    1    9
+##          5    0    0    0    6    0  885    8    0    1    3
+##          6    1    2    1    0    1    2  933    0    0    0
+##          7    1    1    9    7    2    0    0 1019    4    4
+##          8    3    6   11    3    2    0    4    1  956    2
+##          9    0    0    1    0    3    0    0    3    4  985
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9838          
+##                  95% CI : (0.9811, 0.9862)
+##     No Information Rate : 0.1135          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.982           
+##                                           
+##  Mcnemar&#39;s Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: 0 Class: 1 Class: 2 Class: 3 Class: 4 Class: 5
+## Sensitivity            0.9939   0.9885   0.9671   0.9842   0.9898   0.9922
+## Specificity            0.9979   0.9993   0.9991   0.9980   0.9983   0.9980
+## Pos Pred Value         0.9809   0.9947   0.9920   0.9822   0.9848   0.9801
+## Neg Pred Value         0.9993   0.9985   0.9962   0.9982   0.9989   0.9992
+## Prevalence             0.0980   0.1135   0.1032   0.1010   0.0982   0.0892
+## Detection Rate         0.0974   0.1122   0.0998   0.0994   0.0972   0.0885
+## Detection Prevalence   0.0993   0.1128   0.1006   0.1012   0.0987   0.0903
+## Balanced Accuracy      0.9959   0.9939   0.9831   0.9911   0.9941   0.9951
+##                      Class: 6 Class: 7 Class: 8 Class: 9
+## Sensitivity            0.9739   0.9912   0.9815   0.9762
+## Specificity            0.9992   0.9969   0.9965   0.9988
+## Pos Pred Value         0.9926   0.9733   0.9676   0.9890
+## Neg Pred Value         0.9972   0.9990   0.9980   0.9973
+## Prevalence             0.0958   0.1028   0.0974   0.1009
+## Detection Rate         0.0933   0.1019   0.0956   0.0985
+## Detection Prevalence   0.0940   0.1047   0.0988   0.0996
+## Balanced Accuracy      0.9866   0.9941   0.9890   0.9875</code></pre>
+<p>Overall we get a really good performance across all classes even though the error rate is a little higher for items such as “bag” and “sneakers”. It is possible in thsi case that some exotic designs make the prediction a little less reliable.</p>
