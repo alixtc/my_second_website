@@ -27,6 +27,16 @@ library(tidyverse) library(tidymodels) library(keras) diabetes &amp;lt;- read_cs
     </item>
     
     <item>
+      <title>Predicting avocado price with several models</title>
+      <link>/2021/04/23/predicting-avocado-price-with-several-models/</link>
+      <pubDate>Fri, 23 Apr 2021 00:00:00 +0000</pubDate>
+      
+      <guid>/2021/04/23/predicting-avocado-price-with-several-models/</guid>
+      <description>To explore this nice dataset about the avocado sales in the US between the year 2015 and 2018, we will have the possibility to look into some pretty interesting visualization features, and some nice tools of the tidymodel package. We will try to predict the average price of the avocado based on the other features of the dataset.
+library(tidyverse) library(tidymodels) library(lubridate) library(viridis) avocado &amp;lt;- read_csv(&amp;quot;avocado.csv&amp;quot;) ## Warning: Missing column names filled in: &amp;#39;X1&amp;#39; [1] avocado &amp;lt;-avocado %&amp;gt;% select(-X1) %&amp;gt;% janitor::clean_names() head(avocado) ## # A tibble: 6 x 13 ## date average_price total_volume x4046 x4225 x4770 total_bags small_bags ## &amp;lt;date&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; ## 1 2015-12-27 1.</description>
+    </item>
+    
+    <item>
       <title>Simple image classification usinge a CNN</title>
       <link>/2021/04/19/simple-image-classification-usinge-a-cnn/</link>
       <pubDate>Mon, 19 Apr 2021 00:00:00 +0000</pubDate>

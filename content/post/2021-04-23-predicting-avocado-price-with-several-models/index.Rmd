@@ -1,0 +1,196 @@
+---
+title: Predicting avocado price with several models
+author: ATC
+date: '2021-04-23'
+slug: predicting-avocado-price-with-several-models
+categories: []
+tags: []
+---
+To explore this nice dataset about the avocado sales in the US between the year 2015 and 2018, we will have the possibility to look into some pretty interesting visualization features, and some nice tools of the tidymodel package. We will try to predict the average price of the avocado based on the other features of the dataset.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(lubridate)
+library(viridis)
+avocado <- read_csv("avocado.csv")
+avocado <-avocado %>% 
+  select(-X1) %>% 
+  janitor::clean_names()
+head(avocado)
+```
+
+We first start with a little EDA, the first goal is to identify the possible presence of missing values in the data.
+```{r}
+avocado %>% map_dbl(~sum(is.na(.x)))
+avocado %>% map_dbl(~sum(.x == 0))
+```
+
+Fortunately it seems that the dataset is complete. We can then start looking at different predictors to see their repartition amongst the data.
+
+```{r}
+avocado %>% count(region)
+avocado %>% count(type)
+avocado %>% count(year)
+
+```
+
+With a limited number of levels, both `type` and `year` might be very useful predictors in the next steps for the visualization. With more than 50 regions, it will be difficult to have a clear view of what's happening for each of them, howerver we should be able to get a broad insight.
+
+The good thing is that the total_volume is actually the sum of the other columns x4046, x4225, x4770 and total_bags. So the data are pretty good to go from the start.
+
+```{r}
+avocado %>% 
+  slice_sample(n =  10) %>% 
+  rowwise() %>%  
+  mutate(sum  = sum(c( x4046, x4225, x4770, total_bags))) %>% 
+  select(total_volume,sum )
+```
+
+It might be useful to express the quantities for each type of avocado sold as a fraction of the total volume of sales. Particularly because the correlation between these variables and the total volume should be really high.
+```{r}
+avocado %>% mutate(across(.cols = x4046:x_large_bags, .fns = function(x) x/total_volume))
+```
+
+In order to have a bette look at the global distribution of the price and quantity sold, we plot this values as a function of both the `year` and the `type` of avocado.
+
+```{r, message=FALSE}
+avocado %>% 
+  ggplot(aes(average_price, fill = factor(year))) + geom_histogram() + 
+  facet_grid(rows = vars(type), cols = vars(year))
+avocado %>% 
+  ggplot(aes(total_volume, fill = factor(year))) + geom_histogram() +
+  scale_x_log10() +
+  facet_grid(rows = vars(type), cols = vars(year))
+```
+
+Both of these variables look normally distributed which will probably make the modelling a little easier.
+
+Let's have look a the regions that purchase the highest amount of avocados over the whole period:
+
+```{r}
+avocado %>% 
+  group_by(region) %>% 
+  summarise(across(.cols = c(where(is.numeric), -average_price, ), .fns =sum) ) %>% 
+  pivot_longer(cols = x4046:x_large_bags) %>% 
+  filter(region != "TotalUS") %>% 
+  filter(total_volume > mean(total_volume)) %>% 
+  ggplot(aes(fct_reorder(region, total_volume), value, fill = name)) + geom_col() +
+  labs(y = "Number of avocados sold for each region",
+       x = "Regions with with the highest avocado consumption") +
+  coord_flip() 
+```
+
+Instead of the absolute number of units sold, we will replace each column by its fraction relative to the `total_volume` column. This allow to reduce the high levels of correlation that existe between the `total_volume` columns and the other numeric predictors. Similarly, we will change the `date` column to group together all the days that belong to a same month, this will results in less features to analyse. 
+
+```{r}
+avocado <- avocado %>%  
+  filter(region != "TotalUS") %>% 
+  select(-total_bags) %>% 
+  mutate(across(.cols = x4046:x_large_bags, .fns = function(x) x/total_volume))
+# Group date by month and year not days
+avocado <- avocado %>% mutate(type = factor(type),
+                              year = factor(year),
+                              region = factor(region),
+                              date = ymd(paste(year(date), month(date), 1)))
+
+
+avocado%>% 
+  ggplot(aes(date, average_price, color = type)) + 
+  geom_point(alpha = 0.3) + geom_smooth() + facet_wrap(~type)
+avocado %>% 
+  ggplot(aes(date, total_volume, color = type)) + 
+  geom_point(alpha = 0.3) + geom_smooth() + facet_wrap(~type) +
+  scale_y_log10()
+```
+
+As usual, we split the data between training and testing dataset. And we define a simple recipe that will just normalize the `total_volume` column and transform all categorical variables into deummy variables. 
+
+```{r}
+split <- initial_split(avocado, prop = 0.8, strata = type)
+train_avocado <- training(split)
+test_avocado <- testing(split)
+
+reci_avo <- recipe(average_price ~ ., data = train_avocado) %>% 
+  step_normalize(total_volume) %>% 
+  step_dummy(all_nominal_predictors())
+
+```
+
+In order to compare 3 simple model we will use the feature of `workflowsets` a nice addition to the Tidymodels packages. This will allow us to group all the models and their first evaluations in a nice user-friendly tibble.
+
+```{r}
+library(workflowsets)
+lm_model <- linear_reg() %>% 
+  set_engine("lm") %>% 
+  set_mode("regression")
+
+svm_model <- svm_rbf() %>% 
+   set_engine("kernlab") %>% 
+   set_mode("regression")
+
+rf_model <- rand_forest() %>% 
+  set_engine("ranger") %>% 
+  set_mode("regression")
+
+models <- workflow_set(list(reci_avo), list(lm = lm_model,
+                                            svm = svm_model, 
+                                         rf = rf_model), cross = FALSE)
+
+```
+
+In order to compare the different models we will use a resampling strategy on the training dataset. This will allow to evaluate the performance of each model on several resampled dataset, and will allow for a better estimation of the most precise model. In order to do so we use the cross-validation approach, which partition the data into 10 equivalent fraction, where 9 are reserved for the model training and one is kept for the evaluation. So each model will be trained 10 times, each time on a slightly different data set, and will be evaluated right after on the remaining samples.
+
+```{r}
+folds <- vfold_cv(train_avocado, v = 10)
+keep_pred <- control_resamples(save_pred = TRUE, save_workflow = TRUE)
+
+doParallel::registerDoParallel()
+models <- 
+  models %>% 
+  workflow_map("fit_resamples", 
+               # Options to `workflow_map()`: 
+               seed = 1101, verbose = TRUE,
+               # Options to `fit_resamples()`: 
+               resamples = folds, control = keep_pred)
+
+collect_metrics(models)
+autoplot(models)
+```
+
+Since the random forest is clearly the best worklow here by a large margin, it will be the one we will select for future prediction. We first fit the model against the whole training dataset, and we use this final model to predict the desired outcome.
+
+```{r}
+final_wf <- workflow() %>% 
+  add_model(rf_model) %>% 
+  add_recipe(reci_avo) %>% 
+  fit(train_avocado)
+
+results <- final_wf %>% 
+  predict(test_avocado) %>% 
+  bind_cols(truth = test_avocado$average_price)
+
+rmse(results,truth = truth, .pred)
+rsq(results,truth = truth, .pred)
+```
+
+Finally we can have a look at how the closest and most distant prediction are spread within the orginal data. 
+
+```{r}
+test_avocado %>% 
+  bind_cols(.pred = results$.pred) %>% 
+  rowwise() %>% 
+  mutate(devi = 
+      abs((average_price - .pred))
+    ) %>% 
+  ggplot(aes(average_price, .pred, color = devi)) + 
+  geom_point(size = 1.5) + 
+  scale_color_viridis() +
+  facet_grid(cols = vars(type), rows = vars(year)) +
+  labs(x = "Average Price",
+       y = "Predicted Price",
+       color = "Difference\ntrue price - \nprediction")
+```
+
+Insterestingly we see a lot more differences between the prediction and the actual value for Organic avocado. But overall as indicated previously by the metrics, the predictions are relatively close to the data and for the majority the difference remains below 14 cents. 
+
