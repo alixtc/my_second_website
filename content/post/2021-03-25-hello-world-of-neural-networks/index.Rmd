@@ -68,6 +68,11 @@ history <- model %>%
 
 The data is passed through the model in batches of 200 samples at a time before leading to optimization of the model. The number of epochs corresponding to 20, indicates that the model will be trained successively 20 times on the data set. And finally the `validation_split` argument indicates that the last 15% of the training data will be set aside and used for evaluation of model performance during the training. In that way the model is evaluated on a different dataset from its training, which is a good practice to ensure that the model will be able to generalize its predictions to unseen data.
 
+```{r}
+plot(history)
+```
+Here with the plot of the information gathered during the training we see that the model is not overfitting as the curves in training phase and validation phase do not cross indicating that the model is not excessively adapting to the training dataset.
+
 Finally we evaluate the trained model on the testing set.
 
 ```{r}

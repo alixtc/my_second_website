@@ -54,8 +54,12 @@ test_labels &lt;- to_categorical(test_labels)</code></pre>
       batch_size = 200,
       validation_split = 0.15)</code></pre>
 <p>The data is passed through the model in batches of 200 samples at a time before leading to optimization of the model. The number of epochs corresponding to 20, indicates that the model will be trained successively 20 times on the data set. And finally the <code>validation_split</code> argument indicates that the last 15% of the training data will be set aside and used for evaluation of model performance during the training. In that way the model is evaluated on a different dataset from its training, which is a good practice to ensure that the model will be able to generalize its predictions to unseen data.</p>
+<pre class="r"><code>plot(history)</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-6-1.png" width="672" />
+Here with the plot of the information gathered during the training we see that the model is not overfitting as the curves in training phase and validation phase do not cross indicating that the model is not excessively adapting to the training dataset.</p>
 <p>Finally we evaluate the trained model on the testing set.</p>
 <pre class="r"><code>model %&gt;% evaluate(test_df, test_labels)</code></pre>
 <pre><code>##      loss  accuracy 
-## 0.1177076 0.9666000</code></pre>
+## 0.1227789 0.9666000</code></pre>
 <p>We get an accuracy around 97% which is great for a relatively simple network. If we were to use more appropriate feature, mainly convolutional layer which are infinitely more suited to process images, we would get an even better result.</p>
