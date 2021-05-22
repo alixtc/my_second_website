@@ -1,0 +1,254 @@
+---
+title: Predicting avocado price with several models
+author: ATC
+date: '2021-04-23'
+slug: predicting-avocado-price-with-several-models
+categories: []
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>To explore this nice dataset about the avocado sales in the US between the year 2015 and 2018, we will have the possibility to look into some pretty interesting visualization features, and some nice tools of the tidymodel package. We will try to predict the average price of the avocado based on the other features of the dataset.</p>
+<pre class="r"><code>library(tidyverse)
+library(tidymodels)
+library(lubridate)
+library(viridis)
+avocado &lt;- read_csv(&quot;avocado.csv&quot;)</code></pre>
+<pre><code>## Warning: Missing column names filled in: &#39;X1&#39; [1]</code></pre>
+<pre class="r"><code>avocado &lt;-avocado %&gt;% 
+  select(-X1) %&gt;% 
+  janitor::clean_names()
+head(avocado)</code></pre>
+<pre><code>## # A tibble: 6 x 13
+##   date       average_price total_volume x4046  x4225 x4770 total_bags small_bags
+##   &lt;date&gt;             &lt;dbl&gt;        &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;
+## 1 2015-12-27          1.33       64237. 1037. 5.45e4  48.2      8697.      8604.
+## 2 2015-12-20          1.35       54877.  674. 4.46e4  58.3      9506.      9408.
+## 3 2015-12-13          0.93      118220.  795. 1.09e5 130.       8145.      8042.
+## 4 2015-12-06          1.08       78992. 1132  7.20e4  72.6      5811.      5677.
+## 5 2015-11-29          1.28       51040.  941. 4.38e4  75.8      6184.      5986.
+## 6 2015-11-22          1.26       55980. 1184. 4.81e4  43.6      6684.      6556.
+## # … with 5 more variables: large_bags &lt;dbl&gt;, x_large_bags &lt;dbl&gt;, type &lt;chr&gt;,
+## #   year &lt;dbl&gt;, region &lt;chr&gt;</code></pre>
+<p>We first start with a little EDA, the first goal is to identify the possible presence of missing values in the data.</p>
+<pre class="r"><code>avocado %&gt;% map_dbl(~sum(is.na(.x)))</code></pre>
+<pre><code>##          date average_price  total_volume         x4046         x4225 
+##             0             0             0             0             0 
+##         x4770    total_bags    small_bags    large_bags  x_large_bags 
+##             0             0             0             0             0 
+##          type          year        region 
+##             0             0             0</code></pre>
+<pre class="r"><code>avocado %&gt;% map_dbl(~sum(.x == 0))</code></pre>
+<pre><code>##          date average_price  total_volume         x4046         x4225 
+##             0             0             0           242            61 
+##         x4770    total_bags    small_bags    large_bags  x_large_bags 
+##          5497            15           159          2370         12048 
+##          type          year        region 
+##             0             0             0</code></pre>
+<p>Fortunately it seems that the dataset is complete. We can then start looking at different predictors to see their repartition amongst the data.</p>
+<pre class="r"><code>avocado %&gt;% count(region)</code></pre>
+<pre><code>## # A tibble: 54 x 2
+##    region                  n
+##    &lt;chr&gt;               &lt;int&gt;
+##  1 Albany                338
+##  2 Atlanta               338
+##  3 BaltimoreWashington   338
+##  4 Boise                 338
+##  5 Boston                338
+##  6 BuffaloRochester      338
+##  7 California            338
+##  8 Charlotte             338
+##  9 Chicago               338
+## 10 CincinnatiDayton      338
+## # … with 44 more rows</code></pre>
+<pre class="r"><code>avocado %&gt;% count(type)</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   type             n
+##   &lt;chr&gt;        &lt;int&gt;
+## 1 conventional  9126
+## 2 organic       9123</code></pre>
+<pre class="r"><code>avocado %&gt;% count(year)</code></pre>
+<pre><code>## # A tibble: 4 x 2
+##    year     n
+##   &lt;dbl&gt; &lt;int&gt;
+## 1  2015  5615
+## 2  2016  5616
+## 3  2017  5722
+## 4  2018  1296</code></pre>
+<p>With a limited number of levels, both <code>type</code> and <code>year</code> might be very useful predictors in the next steps for the visualization. With more than 50 regions, it will be difficult to have a clear view of what’s happening for each of them, howerver we should be able to get a broad insight.</p>
+<p>The good thing is that the total_volume is actually the sum of the other columns x4046, x4225, x4770 and total_bags. So the data are pretty good to go from the start.</p>
+<pre class="r"><code>avocado %&gt;% 
+  slice_sample(n =  10) %&gt;% 
+  rowwise() %&gt;%  
+  mutate(sum  = sum(c( x4046, x4225, x4770, total_bags))) %&gt;% 
+  select(total_volume,sum )</code></pre>
+<pre><code>## # A tibble: 10 x 2
+## # Rowwise: 
+##    total_volume      sum
+##           &lt;dbl&gt;    &lt;dbl&gt;
+##  1        8443.    8443.
+##  2       14317.   14317.
+##  3     3078856. 3078856.
+##  4       10909.   10909.
+##  5        5023.    5023.
+##  6      244786.  244786.
+##  7        8064.    8064.
+##  8       54996.   54996.
+##  9      128094.  128094.
+## 10        2172.    2172.</code></pre>
+<p>It might be useful to express the quantities for each type of avocado sold as a fraction of the total volume of sales. Particularly because the correlation between these variables and the total volume should be really high.</p>
+<pre class="r"><code>avocado %&gt;% mutate(across(.cols = x4046:x_large_bags, .fns = function(x) x/total_volume))</code></pre>
+<pre><code>## # A tibble: 18,249 x 13
+##    date       average_price total_volume   x4046 x4225    x4770 total_bags
+##    &lt;date&gt;             &lt;dbl&gt;        &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;
+##  1 2015-12-27          1.33       64237. 0.0161  0.848 0.000750     0.135 
+##  2 2015-12-20          1.35       54877. 0.0123  0.813 0.00106      0.173 
+##  3 2015-12-13          0.93      118220. 0.00672 0.923 0.00110      0.0689
+##  4 2015-12-06          1.08       78992. 0.0143  0.911 0.000919     0.0736
+##  5 2015-11-29          1.28       51040. 0.0184  0.859 0.00148      0.121 
+##  6 2015-11-22          1.26       55980. 0.0212  0.859 0.000779     0.119 
+##  7 2015-11-15          0.99       83454. 0.0164  0.883 0.00112      0.0997
+##  8 2015-11-08          0.98      109428. 0.00643 0.930 0.000731     0.0624
+##  9 2015-11-01          1.02       99811. 0.0102  0.875 0.000855     0.114 
+## 10 2015-10-25          1.07       74339. 0.0113  0.871 0.00152      0.116 
+## # … with 18,239 more rows, and 6 more variables: small_bags &lt;dbl&gt;,
+## #   large_bags &lt;dbl&gt;, x_large_bags &lt;dbl&gt;, type &lt;chr&gt;, year &lt;dbl&gt;, region &lt;chr&gt;</code></pre>
+<p>In order to have a bette look at the global distribution of the price and quantity sold, we plot this values as a function of both the <code>year</code> and the <code>type</code> of avocado.</p>
+<pre class="r"><code>avocado %&gt;% 
+  ggplot(aes(average_price, fill = factor(year))) + geom_histogram() + 
+  facet_grid(rows = vars(type), cols = vars(year))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>avocado %&gt;% 
+  ggplot(aes(total_volume, fill = factor(year))) + geom_histogram() +
+  scale_x_log10() +
+  facet_grid(rows = vars(type), cols = vars(year))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-6-2.png" width="672" /></p>
+<p>Both of these variables look normally distributed which will probably make the modelling a little easier.</p>
+<p>Let’s have look a the regions that purchase the highest amount of avocados over the whole period:</p>
+<pre class="r"><code>avocado %&gt;% 
+  group_by(region) %&gt;% 
+  summarise(across(.cols = c(where(is.numeric), -average_price, ), .fns =sum) ) %&gt;% 
+  pivot_longer(cols = x4046:x_large_bags) %&gt;% 
+  filter(region != &quot;TotalUS&quot;) %&gt;% 
+  filter(total_volume &gt; mean(total_volume)) %&gt;% 
+  ggplot(aes(fct_reorder(region, total_volume), value, fill = name)) + geom_col() +
+  labs(y = &quot;Number of avocados sold for each region&quot;,
+       x = &quot;Regions with with the highest avocado consumption&quot;) +
+  coord_flip() </code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>Instead of the absolute number of units sold, we will replace each column by its fraction relative to the <code>total_volume</code> column. This allow to reduce the high levels of correlation that existe between the <code>total_volume</code> columns and the other numeric predictors. Similarly, we will change the <code>date</code> column to group together all the days that belong to a same month, this will results in less features to analyse.</p>
+<pre class="r"><code>avocado &lt;- avocado %&gt;%  
+  filter(region != &quot;TotalUS&quot;) %&gt;% 
+  select(-total_bags) %&gt;% 
+  mutate(across(.cols = x4046:x_large_bags, .fns = function(x) x/total_volume))
+# Group date by month and year not days
+avocado &lt;- avocado %&gt;% mutate(type = factor(type),
+                              year = factor(year),
+                              region = factor(region),
+                              date = ymd(paste(year(date), month(date), 1)))
+
+
+avocado%&gt;% 
+  ggplot(aes(date, average_price, color = type)) + 
+  geom_point(alpha = 0.3) + geom_smooth() + facet_wrap(~type)</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<pre class="r"><code>avocado %&gt;% 
+  ggplot(aes(date, total_volume, color = type)) + 
+  geom_point(alpha = 0.3) + geom_smooth() + facet_wrap(~type) +
+  scale_y_log10()</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-2.png" width="672" /></p>
+<p>As usual, we split the data between training and testing dataset. And we define a simple recipe that will just normalize the <code>total_volume</code> column and transform all categorical variables into deummy variables.</p>
+<pre class="r"><code>split &lt;- initial_split(avocado, prop = 0.8, strata = type)
+train_avocado &lt;- training(split)
+test_avocado &lt;- testing(split)
+
+reci_avo &lt;- recipe(average_price ~ ., data = train_avocado) %&gt;% 
+  step_normalize(total_volume) %&gt;% 
+  step_dummy(all_nominal_predictors())</code></pre>
+<p>In order to compare 3 simple model we will use the feature of <code>workflowsets</code> a nice addition to the Tidymodels packages. This will allow us to group all the models and their first evaluations in a nice user-friendly tibble.</p>
+<pre class="r"><code>library(workflowsets)
+lm_model &lt;- linear_reg() %&gt;% 
+  set_engine(&quot;lm&quot;) %&gt;% 
+  set_mode(&quot;regression&quot;)
+
+svm_model &lt;- svm_rbf() %&gt;% 
+   set_engine(&quot;kernlab&quot;) %&gt;% 
+   set_mode(&quot;regression&quot;)
+
+rf_model &lt;- rand_forest() %&gt;% 
+  set_engine(&quot;ranger&quot;) %&gt;% 
+  set_mode(&quot;regression&quot;)
+
+models &lt;- workflow_set(list(reci_avo), list(lm = lm_model,
+                                            svm = svm_model, 
+                                         rf = rf_model), cross = FALSE)</code></pre>
+<p>In order to compare the different models we will use a resampling strategy on the training dataset. This will allow to evaluate the performance of each model on several resampled dataset, and will allow for a better estimation of the most precise model. In order to do so we use the cross-validation approach, which partition the data into 10 equivalent fraction, where 9 are reserved for the model training and one is kept for the evaluation. So each model will be trained 10 times, each time on a slightly different data set, and will be evaluated right after on the remaining samples.</p>
+<pre class="r"><code>folds &lt;- vfold_cv(train_avocado, v = 10)
+keep_pred &lt;- control_resamples(save_pred = TRUE, save_workflow = TRUE)
+
+doParallel::registerDoParallel()
+models &lt;- 
+  models %&gt;% 
+  workflow_map(&quot;fit_resamples&quot;, 
+               # Options to `workflow_map()`: 
+               seed = 1101, verbose = TRUE,
+               # Options to `fit_resamples()`: 
+               resamples = folds, control = keep_pred)</code></pre>
+<pre><code>## i 1 of 3 resampling: recipe_lm</code></pre>
+<pre><code>## ✓ 1 of 3 resampling: recipe_lm (4.8s)</code></pre>
+<pre><code>## i 2 of 3 resampling: recipe_svm</code></pre>
+<pre><code>## ✓ 2 of 3 resampling: recipe_svm (3m 59.1s)</code></pre>
+<pre><code>## i 3 of 3 resampling: recipe_rf</code></pre>
+<pre><code>## ✓ 3 of 3 resampling: recipe_rf (2m 47.9s)</code></pre>
+<pre class="r"><code>collect_metrics(models)</code></pre>
+<pre><code>## # A tibble: 6 x 9
+##   wflow_id  .config       preproc model   .metric .estimator  mean     n std_err
+##   &lt;chr&gt;     &lt;chr&gt;         &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
+## 1 recipe_lm Preprocessor… recipe  linear… rmse    standard   0.234    10 0.00203
+## 2 recipe_lm Preprocessor… recipe  linear… rsq     standard   0.665    10 0.00466
+## 3 recipe_s… Preprocessor… recipe  svm_rbf rmse    standard   0.197    10 0.00300
+## 4 recipe_s… Preprocessor… recipe  svm_rbf rsq     standard   0.765    10 0.00685
+## 5 recipe_rf Preprocessor… recipe  rand_f… rmse    standard   0.147    10 0.00194
+## 6 recipe_rf Preprocessor… recipe  rand_f… rsq     standard   0.881    10 0.00289</code></pre>
+<pre class="r"><code>autoplot(models)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>Since the random forest is clearly the best worklow here by a large margin, it will be the one we will select for future prediction. We first fit the model against the whole training dataset, and we use this final model to predict the desired outcome.</p>
+<pre class="r"><code>final_wf &lt;- workflow() %&gt;% 
+  add_model(rf_model) %&gt;% 
+  add_recipe(reci_avo) %&gt;% 
+  fit(train_avocado)
+
+results &lt;- final_wf %&gt;% 
+  predict(test_avocado) %&gt;% 
+  bind_cols(truth = test_avocado$average_price)
+
+rmse(results,truth = truth, .pred)</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard       0.145</code></pre>
+<pre class="r"><code>rsq(results,truth = truth, .pred)</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rsq     standard       0.880</code></pre>
+<p>Finally we can have a look at how the closest and most distant prediction are spread within the orginal data.</p>
+<pre class="r"><code>test_avocado %&gt;% 
+  bind_cols(.pred = results$.pred) %&gt;% 
+  rowwise() %&gt;% 
+  mutate(devi = 
+      abs((average_price - .pred))
+    ) %&gt;% 
+  ggplot(aes(average_price, .pred, color = devi)) + 
+  geom_point(size = 1.5) + 
+  scale_color_viridis() +
+  facet_grid(cols = vars(type), rows = vars(year)) +
+  labs(x = &quot;Average Price&quot;,
+       y = &quot;Predicted Price&quot;,
+       color = &quot;Difference\ntrue price - \nprediction&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>Insterestingly we see a lot more differences between the prediction and the actual value for Organic avocado. But overall as indicated previously by the metrics, the predictions are relatively close to the data and for the majority the difference remains below 14 cents.</p>

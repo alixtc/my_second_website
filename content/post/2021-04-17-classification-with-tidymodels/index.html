@@ -1,0 +1,171 @@
+---
+title: "Classification with Tidymodels"
+author: "ATC"
+date: '2021-04-17'
+slug: classification-with-tidymodels
+categories: []
+tags: []
+editor_options: 
+  chunk_output_type: console
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>This is a simple example of data classification using tree bases models with the Tidymodels package. The data comme from a classical dataset about credit default with various explainatory variables associated.</p>
+<div id="data-import-and-splitting-into-training-and-test-sets" class="section level2">
+<h2>Data import and splitting into training and test sets</h2>
+<pre class="r"><code>credit &lt;- read.csv(&quot;credit.csv&quot;)
+credit &lt;- credit %&gt;% 
+  mutate_if(is.character, factor) %&gt;% 
+  mutate(default = factor(default),
+         dependents = factor(dependents)) %&gt;% 
+  as_tibble()
+head(credit)</code></pre>
+<pre><code>## # A tibble: 6 x 21
+##   checking_balance months_loan_duration credit_history purpose   amount
+##   &lt;fct&gt;                           &lt;int&gt; &lt;fct&gt;          &lt;fct&gt;      &lt;int&gt;
+## 1 &lt; 0 DM                              6 critical       radio/tv    1169
+## 2 1 - 200 DM                         48 repaid         radio/tv    5951
+## 3 unknown                            12 critical       education   2096
+## 4 &lt; 0 DM                             42 repaid         furniture   7882
+## 5 &lt; 0 DM                             24 delayed        car (new)   4870
+## 6 unknown                            36 repaid         education   9055
+## # … with 16 more variables: savings_balance &lt;fct&gt;, employment_length &lt;fct&gt;,
+## #   installment_rate &lt;int&gt;, personal_status &lt;fct&gt;, other_debtors &lt;fct&gt;,
+## #   residence_history &lt;int&gt;, property &lt;fct&gt;, age &lt;int&gt;, installment_plan &lt;fct&gt;,
+## #   housing &lt;fct&gt;, existing_credits &lt;int&gt;, default &lt;fct&gt;, dependents &lt;fct&gt;,
+## #   telephone &lt;fct&gt;, foreign_worker &lt;fct&gt;, job &lt;fct&gt;</code></pre>
+<p>First let’s have a bried look at the data. We will start with all the numeric data at first.
+<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>It appears that only the variables <code>age</code>, <code>amount</code> and <code>months_loan_duration</code> are actually numerical. The other will be changed to a factor to take that into account.
+But first let’s have a more detailed look on the numerical variables depending on whether or not there was a loan default (<code>2</code> corresponds to a default)</p>
+<pre class="r"><code>credit %&gt;% 
+  select(default, age, amount, months_loan_duration) %&gt;% 
+  pivot_longer(cols = age:months_loan_duration, names_to = &quot;key&quot;, values_to = &quot;value&quot; ) %&gt;% 
+  ggplot(aes(value, color = default)) + geom_density() + facet_wrap(~key, scales = &quot;free&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>Now for each categorical factor let’s have a look at the fraction of the default credit <code>2</code> to determine what are some of the most important features to predict whether the credit will be reimbursed or not.</p>
+<pre class="r"><code>credit &lt;- credit %&gt;% 
+  mutate(across(.cols = c(existing_credits, installment_rate, residence_history), .fns = factor))
+
+credit %&gt;% 
+  select(where(~!is.numeric(.x))) %&gt;% 
+  pivot_longer(cols = c(everything(), -default)) %&gt;% 
+  group_by(default, name) %&gt;% 
+  count(value) %&gt;% 
+  group_by(name,value) %&gt;% 
+  mutate(frac = n / sum(n) * 100) %&gt;% 
+  ggplot(aes(value, frac, fill = default)) + geom_col() + 
+  coord_flip() + facet_wrap(~name, ncol = 3, scales = &quot;free&quot;) </code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>From the look of it, the conditions that show a higher proportion of credit default are located inside variables such as “credit_history”, “checking_balance”, “foreign_worker”. This indicates that not very surprisingly people with a low account balance, with fewer property, or bad credit records are more likely to default.</p>
+<p>Now that we have a better idea of what are the data, we can start modelling to try to predict the outcome of a credit when it’s contracted.</p>
+</div>
+<div id="classification-with-decision-tree" class="section level2">
+<h2>Classification with decision tree</h2>
+<p>We will begin with a simple classification tree model, but first we have to split the data for the final evaluation.</p>
+<pre class="r"><code>set.seed(31)
+indexes &lt;-initial_split(credit, prop = 0.85, strata = default)
+training &lt;- training(indexes)
+test &lt;- testing(indexes)</code></pre>
+<p>Here is the model definition:</p>
+<pre class="r"><code>tree_model_def &lt;- decision_tree() %&gt;% 
+  set_engine(&quot;C5.0&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;) %&gt;% 
+  set_args(trials = 10)
+
+tree_fit &lt;-  tree_model_def %&gt;% fit(
+  default ~ ., 
+  data = training)</code></pre>
+<p>And finally we use the decision tree model on the test dataset to predict the outcome of the credit and compare it to the actual outcome.</p>
+<pre class="r"><code>results &lt;- tree_fit %&gt;% 
+  predict(test) %&gt;% 
+  bind_cols(truth = test$default)
+confusionMatrix(results$.pred_class, results$truth)</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction  1  2
+##          1 91 23
+##          2 14 22
+##                                         
+##                Accuracy : 0.7533        
+##                  95% CI : (0.6764, 0.82)
+##     No Information Rate : 0.7           
+##     P-Value [Acc &gt; NIR] : 0.0890        
+##                                         
+##                   Kappa : 0.3771        
+##                                         
+##  Mcnemar&#39;s Test P-Value : 0.1884        
+##                                         
+##             Sensitivity : 0.8667        
+##             Specificity : 0.4889        
+##          Pos Pred Value : 0.7982        
+##          Neg Pred Value : 0.6111        
+##              Prevalence : 0.7000        
+##          Detection Rate : 0.6067        
+##    Detection Prevalence : 0.7600        
+##       Balanced Accuracy : 0.6778        
+##                                         
+##        &#39;Positive&#39; Class : 1             
+## </code></pre>
+<pre class="r"><code>tree_fit %&gt;% 
+  predict(test, type = &quot;prob&quot;) %&gt;% 
+  bind_cols(truth = test$default ) %&gt;% 
+  roc_curve(.pred_1, truth = truth) %&gt;% 
+  autoplot()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>Not too bad but the model is actually much more effective to predict that the loans will not default.</p>
+<p>Let’s see if we can get a better estimation with a different model.</p>
+</div>
+<div id="classification-with-a-glm" class="section level2">
+<h2>Classification with a GLM</h2>
+<pre class="r"><code>glm_dec &lt;- logistic_reg(penalty = 1e-2) %&gt;% 
+  set_engine(&quot;glmnet&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;)
+
+glm_fit &lt;- glm_dec %&gt;% fit(default~., data = training)
+
+res_glm &lt;- glm_fit %&gt;% 
+  predict(test) %&gt;% 
+  bind_cols(truth = test$default )
+  
+confusionMatrix(res_glm$.pred_class, res_glm$truth)</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction  1  2
+##          1 93 24
+##          2 12 21
+##                                           
+##                Accuracy : 0.76            
+##                  95% CI : (0.6835, 0.8259)
+##     No Information Rate : 0.7             
+##     P-Value [Acc &gt; NIR] : 0.06274         
+##                                           
+##                   Kappa : 0.3814          
+##                                           
+##  Mcnemar&#39;s Test P-Value : 0.06675         
+##                                           
+##             Sensitivity : 0.8857          
+##             Specificity : 0.4667          
+##          Pos Pred Value : 0.7949          
+##          Neg Pred Value : 0.6364          
+##              Prevalence : 0.7000          
+##          Detection Rate : 0.6200          
+##    Detection Prevalence : 0.7800          
+##       Balanced Accuracy : 0.6762          
+##                                           
+##        &#39;Positive&#39; Class : 1               
+## </code></pre>
+<pre class="r"><code>glm_fit %&gt;% 
+  predict(test, type = &quot;prob&quot;) %&gt;% 
+  bind_cols(truth = test$default ) %&gt;% 
+  roc_curve(.pred_1, truth = truth) %&gt;% 
+  autoplot()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>In this 2nd model the evaluation metrics indicates a much better detection of default cases and a similar performance regarding non defaulting credit. Overall this second model seems much more efficient to predict the future of a contracted loan, as shown by the differences of the area under curve for the ROC curve plots.</p>
+<!-- Let's see if we can improve the prediction with a more sophisticated approach. -->
+<!-- ## Example with a Randomforest -->
+</div>
