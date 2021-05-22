@@ -80,23 +80,23 @@ La solution consiste à utiliser le gestionnaire de paquets de Linux pour réali
     </item>
     
     <item>
+      <title>How to get a Half-shiny app?</title>
+      <link>/2021/03/29/how-to-get-a-half-shiny-app/</link>
+      <pubDate>Mon, 29 Mar 2021 00:00:00 +0000</pubDate>
+      
+      <guid>/2021/03/29/how-to-get-a-half-shiny-app/</guid>
+      <description>Do you want a half-shiny App ? Because that’s how you get a nice half-shiny app with half of your screen being grey like that :
+For that I just had to split my UI and Server functions the wrong way. Instead off having an “app.R” in your application folder:
+Besides the lame jokes, it took me ages to figure out what was actually going around. Turns out I was just following bad practices for splitting my app.</description>
+    </item>
+    
+    <item>
       <title>Hello world of neural networks</title>
       <link>/2021/03/25/hello-world-of-neural-networks/</link>
       <pubDate>Thu, 25 Mar 2021 00:00:00 +0000</pubDate>
       
       <guid>/2021/03/25/hello-world-of-neural-networks/</guid>
       <description>Below is a very simple example of the typical analysis done with keras as a demonstration of the use of a neural network. It starts as usual by loading the necessary packages in this case only the keras package will be necessary. The data correspond to hand-written digits whose images have been scanned and preprocessed so that the actual drawing is centered in a 28 * 28 pixels image, with the corresponding digits specified in the label y part of the df dataset.</description>
-    </item>
-    
-    <item>
-      <title>How to get a Half-shiny app?</title>
-      <link>/1970/01/01/how-to-get-a-half-shiny-app/</link>
-      <pubDate>Thu, 01 Jan 1970 00:00:00 +0000</pubDate>
-      
-      <guid>/1970/01/01/how-to-get-a-half-shiny-app/</guid>
-      <description>Do you want a half-shiny App ? Because that’s how you get a nice half-shiny app with half of your screen being grey like that :
-For that I just had to split my UI and Server functions the wrong way. Instead off having an “app.R” in your application folder:
-Besides the lame jokes, it took me ages to figure out what was actually going around. Turns out I was just following bad practices for splitting my app.</description>
     </item>
     
     <item>

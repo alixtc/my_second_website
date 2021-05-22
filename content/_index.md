@@ -1,5 +1,8 @@
 
 ## Qui suis-je ?
+
+![](PhotoPerso.jpg)
+
 Je m'appelle Alix Tiran-Cappello et je suis titulaire d'un doctorat en neurosciences de l'université d'Aix-Marseille et j'ai pu bénéficier d'un post-docorat d'un an aux Etats-Unis à l'université Northwestern à Chicago. Durant ces nombreuses années à travailler sur des sujets complexes en neurosciences, j'ai pu utiliser et maitriser plusieurs solutions d'analyses pour des problèmes variés : 
 
   - analyses de données comportementales
@@ -10,7 +13,9 @@ Je m'appelle Alix Tiran-Cappello et je suis titulaire d'un doctorat en neuroscie
 ##  Un background diversifié
 Grâce à mon parcours via l'Ecole Normale Supérieur de Lyon, j'ai pu bénéficier d'un enseignement riche en concepts mathématiques et d'une bonne formation sur certains outils de base en programmation comme R et Matlab.
 
-Par ailleurs durant plusieurs année de thèses et de post-doc, j'ai pu progressivement développer des compétences pour l'analyse statistique:
+Par ailleurs durant mes années de thèses et de post-doc, j'ai pu progressivement développer des compétences pour l'analyse statistique:
+
+![](App.png)
 
   - tests uni- et multivariés
   - modèles linéaires, mixtes, et généralisés
@@ -20,6 +25,11 @@ Par ailleurs durant plusieurs année de thèses et de post-doc, j'ai pu progress
 ## Approche technique
 La plupart des outils présentés ici sont basés sur le logiciel R. Il s'agit d'un logiciel d'analyse et de calcul statistique gratuit et en accès libre. De nombreux formats de données sont facilement importables et utilisables directement via de nombreuses extensions développées en accès libre.
 
+![](Rstudio.png)
+
 R permet aussi de développer des interfaces interactives complètes en utilisant l'extension Shiny permettant à l'utilisateur de choisir le type d'analyses à conduire, différents modes de visualisation, et d'exporter les données traitées. [Des exemples de simples applications sont disponibles ici](https://site.atc-data.fr/shiny/)
+
+
+![](App2.png)
 
 Cet ensemble est mis à profit pour proposer des outils dans lequel l'intervention de l'utilisateur pour être adapté, allant de pré-traitements limités à un ensemble cohérent et complètement automatisé.

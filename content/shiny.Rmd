@@ -3,7 +3,7 @@ title: " "
 output: html_document
 runtime: shiny
 ---
-
+Following on this page is a simple example of shiny application to visualize data from 4 different dataset with different plotting options. On the additional tabs, the statistical anaylisis illustrate global explanatory factors for the selected variable as well as 2 by 2 multiple comparisons for each time points.
 
 <iframe height="700" width="100%" src="https://shiny.atc-data.fr/"></iframe> 
 

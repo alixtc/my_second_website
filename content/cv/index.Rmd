@@ -6,6 +6,7 @@ slug: cv
 categories: []
 tags: []
 ---
- 
 
-<div align="center"><iframe src="CV Tiran-Cappello Alix - Data scientist.pdf" height="1600" width="1000"></iframe></div>
+Please find below my full Resume with detailed specifications about my previous working experiences, skills, publications and teaching activities. 
+
+<div align="center"><iframe src="CV Tiran-Cappello Full base.pdf" height="1600" width="1000"></iframe></div>

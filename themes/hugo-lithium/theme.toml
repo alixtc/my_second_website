@@ -13,4 +13,7 @@ min_version = 0.15
 [author]
   name = "Jonathan Rutheiser"
   homepage = "http://jrutheiser.com/"
+  
+[markup.goldmark.renderer]
+unsafe = true
 
