@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.81.0" />
+
+
+<title>Ensembling models - A Hugo website</title>
+<meta property="og:title" content="Ensembling models - A Hugo website">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/homepage/">Présentation</a></li>
+    
+    <li><a href="/cv/">CV</a></li>
+    
+    <li><a href="/post/">Articles et Publications</a></li>
+    
+    <li><a href="/contact/">Contact</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/app-behavioral-data-analysis/">Shiny Exemple</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/">Shiny Index</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">9 min read</span>
+    
+
+    <h1 class="article-title">Ensembling models</h1>
+
+    
+    <span class="article-date">2021-06-25</span>
+    
+
+    <div class="article-content">
+      
+<script src="/2021/06/25/ensembling-models/index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>One of the great advantages of the tidymodels framework is the possibility to ensemble several models together in order to achieve better predicitions. The following example is largely based on the video from David Robinson for its series “Machine Learning Monday” available here: <a href="https://www.youtube.com/watch?v=HBZyqkVjUgY&amp;t=4962s" class="uri">https://www.youtube.com/watch?v=HBZyqkVjUgY&amp;t=4962s</a></p>
+<p>The purpose of the exercise is to predict usersratings for board games from various predictor variables. The dataset is coming from a SLICED session from Kaggle and is available here: <a href="https://www.kaggle.com/c/sliced-s01e01/overview" class="uri">https://www.kaggle.com/c/sliced-s01e01/overview</a></p>
+<pre class="r"><code>library(tidyverse)
+library(tidymodels)
+library(textrecipes) 
+library(stacks) # package to ensemble models
+doParallel::registerDoParallel(cores = 4) # Runs tuning calculation in parallel
+
+raw_data &lt;- read_csv(&quot;train.csv&quot;,
+                     col_types = cols(
+                       category7 = &quot;c&quot;,
+                       category8 = &quot;c&quot;, 
+                       category9 = &quot;c&quot;,
+                       category10 = &quot;c&quot;,
+                       category11 = &quot;c&quot;,
+                       category12 = &quot;c&quot;)
+)</code></pre>
+<pre><code>## # A tibble: 3,499 x 26
+##    game_id names        min_players max_players avg_time min_time max_time  year
+##      &lt;dbl&gt; &lt;chr&gt;              &lt;dbl&gt;       &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt; &lt;dbl&gt;
+##  1   17526 Hecatomb               2           4       30       30       30  2005
+##  2     156 Wildlife Ad…           2           6       60       60       60  1985
+##  3    2397 Backgammon             2           2       30       30       30 -3000
+##  4    8147 Maka Bana              2           6       60       45       60  2003
+##  5   92190 Super Dunge…           2           6      120      120      120  2011
+##  6    1668 Modern Nava…           2           6       90       90       90  1989
+##  7   28089 Château Roq…           2           4       30       30       30  2007
+##  8    4854 7th Fleet              2           2      120      120      120  1987
+##  9   75333 Target Earth           1           4       90       90       90  2010
+## 10   21791 Masons                 2           4       45       45       45  2006
+## # … with 3,489 more rows, and 18 more variables: geek_rating &lt;dbl&gt;,
+## #   num_votes &lt;dbl&gt;, age &lt;dbl&gt;, mechanic &lt;chr&gt;, owned &lt;dbl&gt;, category1 &lt;chr&gt;,
+## #   category2 &lt;chr&gt;, category3 &lt;chr&gt;, category4 &lt;chr&gt;, category5 &lt;chr&gt;,
+## #   category6 &lt;chr&gt;, category7 &lt;chr&gt;, category8 &lt;chr&gt;, category9 &lt;chr&gt;,
+## #   category10 &lt;chr&gt;, category11 &lt;chr&gt;, category12 &lt;chr&gt;, designer &lt;chr&gt;</code></pre>
+<p>The first thing we do is a regroupment of some categorical columns.</p>
+<pre class="r"><code># Unite some of the categorical columns for later tokenization
+raw_data &lt;- raw_data %&gt;%
+  unite(&quot;category&quot;, contains(&quot;category&quot;), sep = &quot;, &quot;, na.rm = TRUE) %&gt;%
+  mutate(
+    mechanic = str_replace_all(mechanic, &quot;/&quot;, &quot;, &quot;),
+    mechanic = str_replace_all(mechanic, &quot;  &quot;, &quot; &quot;)
+  )</code></pre>
+<div id="exploratory-data-analysis" class="section level2">
+<h2>Exploratory data analysis</h2>
+<p>First let’s have a look on possible missing values.</p>
+<pre class="r"><code>raw_data %&gt;% map_dbl(~ sum(is.na(.x)))</code></pre>
+<pre><code>##     game_id       names min_players max_players    avg_time    min_time 
+##           0           0           0           0           0           0 
+##    max_time        year geek_rating   num_votes         age    mechanic 
+##           0           0           0           0           0           0 
+##       owned    category    designer 
+##           0           0           0</code></pre>
+<pre class="r"><code>raw_data %&gt;% map_dbl(~ sum(.x == 0, na.rm = TRUE))</code></pre>
+<pre><code>##     game_id       names min_players max_players    avg_time    min_time 
+##           0           0           9          16          12          52 
+##    max_time        year geek_rating   num_votes         age    mechanic 
+##          44          10           0           0         146           0 
+##       owned    category    designer 
+##           0           0           0</code></pre>
+<p>A few missing values in each numerical columns are set to zero :age, min/max_time, players, but that should not impact the predictions. Now we should have a look on different predictors:</p>
+<pre class="r"><code>raw_data %&gt;% 
+  ggplot(aes(geek_rating)) +
+  geom_histogram()</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<pre class="r"><code>raw_data %&gt;% 
+  ggplot(aes(max_time)) +
+  geom_density() +
+  scale_x_log10()</code></pre>
+<pre><code>## Warning: Transformation introduced infinite values in continuous x-axis</code></pre>
+<pre><code>## Warning: Removed 44 rows containing non-finite values (stat_density).</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>raw_data %&gt;%
+  ggplot(aes(log(avg_time), log(max_time))) +
+  geom_point()</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-6-2.png" width="672" /></p>
+<p>For most data points (<code>{r, echo = FALSE}raw_data %&gt;% filter(max_time == avg_time) %&gt;% nrow()</code>) ; average time is equal to the maximum duration of a game. So that variable won’t be useful for predictions.</p>
+<pre class="r"><code>raw_data %&gt;%
+  ggplot(aes(log(min_time), log(avg_time))) +
+  geom_point()</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>In contrast, for most case avg_time &gt;= min_time which means that both of them might be helpful.</p>
+<pre class="r"><code>raw_data %&gt;%
+  select(mechanic) %&gt;%
+  separate_rows(mechanic, sep = &quot;, |/&quot;) %&gt;%
+  mutate(mechanic = str_trim(mechanic)) %&gt;%
+  count(mechanic, sort = TRUE) </code></pre>
+<pre><code>## # A tibble: 60 x 2
+##    mechanic                   n
+##    &lt;chr&gt;                  &lt;int&gt;
+##  1 Dice Rolling             990
+##  2 Hand Management          963
+##  3 Variable Player Powers   646
+##  4 Set Collection           511
+##  5 Area Control             446
+##  6 Area Influence           446
+##  7 Card Drafting            415
+##  8 Modular Board            401
+##  9 Tile Placement           391
+## 10 Hex-and-Counter          317
+## # … with 50 more rows</code></pre>
+<p>The limited numbers of possibilities foe games mechanic will probably not necessitate token filtering to keep only the most used mechanics.</p>
+<p>There is a huge increase in the number of games registered in the recent years.</p>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<pre><code>## [1] &quot;Board games invented befor 1800&quot;</code></pre>
+<pre><code>## [1] 23</code></pre>
+<p>And finally, the age for the games is centered aroung 10 with a few missing values as we saw previously that have been set to 0.</p>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>Globally there is a linear relationship between log of num_votes, owned and geek_rating, which indicates good potential for predictions.</p>
+<pre class="r"><code>raw_data %&gt;% ggplot(aes(log(num_votes), geek_rating)) +
+  geom_point()</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<pre class="r"><code>raw_data %&gt;% ggplot(aes(log(owned), geek_rating)) +
+  geom_point()</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-11-2.png" width="672" /></p>
+</div>
+<div id="begining-of-the-modelling" class="section level2">
+<h2>Begining of the modelling</h2>
+<p>First we split the data, create the cross-validation folds from the training split and prepare the metric for the models.</p>
+<pre class="r"><code>set.seed(2040)
+spl &lt;- initial_split(raw_data, 0.8)
+train &lt;- training(spl)
+test &lt;- testing(spl)
+
+folds &lt;- vfold_cv(train)
+mset &lt;- metric_set(rmse)</code></pre>
+<div id="linear-model" class="section level3">
+<h3>Linear Model</h3>
+<p>We start with a linear model, and although the model itself is not particularly complex, there are a number of pre-processing steps that are not so easy:</p>
+<pre class="r"><code>lmr_reci &lt;- recipe(
+  geek_rating ~ owned + num_votes + min_players + max_players + year +
+    min_time + avg_time +
+    mechanic + category,
+  data = train
+) %&gt;%
+  step_log(c(owned, num_votes), base = 10) %&gt;%
+  step_ns(year, deg_free = tune()) %&gt;%  # This parameter will be tune through resampling
+  step_mutate(max_players = pmin(max_players, 20)) %&gt;%
+  # Tokenisation transform text elements in categorical variables,
+  # this is used on both &#39;mechanic&#39; and &#39;category&#39;.
+  step_tokenize(mechanic, 
+                category, 
+                token = &quot;regex&quot;, 
+                options = list(pattern = &quot;, &quot;)) %&gt;%
+  step_tf(mechanic, category)
+
+lmr_model &lt;- linear_reg(&quot;regression&quot;) %&gt;%
+  set_engine(&quot;lm&quot;)
+
+wf_lmr &lt;- workflow() %&gt;%
+  add_model(lmr_model) %&gt;%
+  add_recipe(lmr_reci)</code></pre>
+<p>From this recipe and workflow, we evaluate the perfomance of the model for multiple values of the parameter ‘degree of freedom’ for the splines. This is done one each of the folds used for cross-validation.
+Note: The use of the function <code>control_stack_grid()</code> is essential later on to combine models. It saves the predictions and the models during the tuning process.</p>
+<pre class="r"><code>lmr_tuned &lt;- wf_lmr %&gt;%
+  tune_grid(
+    resamples = folds,
+    grid = crossing(deg_free = 3:7),
+    metrics = mset,
+    control = control_stack_grid()
+  )
+
+lmr_tuned %&gt;%
+  autoplot()</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p>Finally, only the best performing model is kept for the evaluation of the model.</p>
+<pre class="r"><code>lmr_fit &lt;- wf_lmr %&gt;%
+  finalize_workflow(select_best(lmr_tuned)) %&gt;%
+  fit(train)
+
+lmr_fit %&gt;%
+  predict(test) %&gt;%
+  bind_cols(test) %&gt;%
+  rmse(geek_rating, .pred)</code></pre>
+<pre><code>## Warning in predict.lm(object = object$fit, newdata = new_data, type =
+## &quot;response&quot;): prediction from a rank-deficient fit may be misleading</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard       0.204</code></pre>
+<p>With an average error around 0.2, we get alreday a fairly good prediction. Let’s try to improve it with a different approach.</p>
+</div>
+<div id="random-forest-model" class="section level3">
+<h3>Random Forest Model</h3>
+<p>Here we use the same kind of recipe as for the linear regression, with a notable difference, the number of tokens is limited to the 5 most used tokens for <code>mechanic</code> and <code>category</code> as a RF typically works better with a limited number of key predictors.</p>
+<pre class="r"><code>rf_reci &lt;-
+  recipe(
+    geek_rating ~ owned + num_votes + min_players + max_players + year +
+      min_time + avg_time +
+      mechanic + category,
+    data = train
+  ) %&gt;%
+  step_log(c(owned, num_votes), base = 10) %&gt;%
+  step_mutate(max_players = pmin(max_players, 20)) %&gt;%
+  step_tokenize(mechanic, category, token = &quot;regex&quot;, options = list(pattern = &quot;, &quot;)) %&gt;%
+  step_tokenfilter(mechanic, category, max_tokens = 5) %&gt;%
+  step_tf(mechanic, category)
+
+rf_spec &lt;- rand_forest(mtry = tune(), trees = 300) %&gt;%
+  set_engine(&quot;ranger&quot;) %&gt;%
+  set_mode(&quot;regression&quot;)
+
+rf_wf &lt;- workflow() %&gt;%
+  add_model(rf_spec) %&gt;%
+  add_recipe(rf_reci)</code></pre>
+<p>The number of trees has been tuned previously and the best values of 300 has been manually selected.</p>
+<pre class="r"><code>rf_tuned &lt;- rf_wf %&gt;%
+  tune_grid(
+    resamples = folds,
+    metrics = mset,
+    grid = crossing(mtry = 12:16),
+    control = control_stack_grid()
+  )
+autoplot(rf_tuned)</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>As previouly we fit the model using the best parameters from the tuning process.</p>
+<pre class="r"><code>rf_fit &lt;- rf_wf %&gt;%
+  finalize_workflow(select_best(rf_tuned)) %&gt;%
+  fit(train)
+
+rf_fit %&gt;%
+  predict(test) %&gt;%
+  bind_cols(truth = test$geek_rating) %&gt;%
+  rmse(.pred, truth)</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard       0.161</code></pre>
+<p>Here we get a lower RMSE compared to the linear model, with roughly a 25% improvement in prediction error.</p>
+</div>
+<div id="support-vector-machine" class="section level3">
+<h3>Support vector Machine</h3>
+<p>The third and last model will be a SVM using a radial based kernel. We will use here a simplified version of the recipe with only numeric predictors as input, in order to increase the diversity between the models.</p>
+<pre class="r"><code>svm_reci &lt;-
+  recipe(
+    geek_rating ~ owned + num_votes + year +
+      min_time + avg_time,
+    data = train
+  ) %&gt;%
+  step_log(c(owned, num_votes), base = 10)
+
+svm_spec &lt;- svm_rbf(cost = tune(), rbf_sigma = tune()) %&gt;%
+  set_engine(&quot;kernlab&quot;) %&gt;%
+  set_mode(&quot;regression&quot;)
+
+svm_wf &lt;- workflow() %&gt;%
+  add_model(svm_spec) %&gt;%
+  add_recipe(svm_reci)</code></pre>
+<p>We tune the model for 2 different parameters: the cost, which is roughly a tolerance to misclassification allowing a better generalization of the results and the RBF-sigma value which dictates how distant point will be used to the detemination of the boundaries.</p>
+<pre class="r"><code>svm_tuned &lt;- svm_wf %&gt;%
+  tune_grid(
+    resamples = folds,
+    metrics = mset,
+    grid = crossing(
+      cost = seq(10, 16, 2),
+      rbf_sigma = seq(0.7, 1, 0.05)
+    ),
+    control = control_stack_grid()
+  )
+autoplot(svm_tuned)</code></pre>
+<p><img src="/2021/06/25/ensembling-models/index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<pre class="r"><code>svm_fit &lt;- svm_wf %&gt;%
+  finalize_workflow(select_best(svm_tuned)) %&gt;%
+  fit(train)
+
+svm_fit %&gt;%
+  predict(test) %&gt;%
+  bind_cols(truth = test$geek_rating) %&gt;%
+  rmse(.pred, truth)</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard       0.186</code></pre>
+<p>We see here that our SVM model performs slightly worse than our RF model, but since our goal is to have many differents inputs to combine in a ensemble this is actually OK.</p>
+</div>
+<div id="ensembling-models" class="section level3">
+<h3>Ensembling models</h3>
+<p>In the Tidymodels framework, in order to combine models we have to provide tuned objects, in which we save both the predictions and the model, this is why we used the function <code>stacks::control_stack_grid()</code> so far in the tuning process. In order to reduce the computation we will only keep the best of each model as we have done previously.</p>
+<pre class="r"><code>lmr_chosen &lt;- lmr_tuned %&gt;%
+  filter_parameters(parameters = select_best(lmr_tuned))
+rf_chosen &lt;- rf_tuned %&gt;%
+  filter_parameters(parameters = select_best(rf_tuned))
+svm_chosen &lt;- svm_tuned %&gt;%
+  filter_parameters(parameters = select_best(svm_tuned))
+
+combined_models &lt;-
+  stacks() %&gt;%
+  add_candidates(lmr_chosen) %&gt;%
+  add_candidates(rf_chosen) %&gt;%
+  add_candidates(svm_chosen)
+
+combined_fit &lt;-
+  combined_models %&gt;%
+  blend_predictions() %&gt;%
+  fit_members()
+
+predict(combined_fit, test) %&gt;%
+  bind_cols(test) %&gt;%
+  rmse(geek_rating, .pred)</code></pre>
+<pre><code>## Warning in predict.lm(object = object$fit, newdata = new_data, type =
+## &quot;response&quot;): prediction from a rank-deficient fit may be misleading</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard       0.158</code></pre>
+<p>The combination is created using the three diffrent models, their relative contribution is determined using <code>blend_predictions()</code> which gives each one a weight in the ensemble. The final function of the pipe <code>fit_members()</code> allows to fit the ensemble on the training data set. Finally we use the usal <code>predict</code> and <code>rmse</code> function to determine the ensemble performance</p>
+<p>As we see here we get a better estimate compared to each of our separate models. Although the improvement here is not huge it can sometimes make a big difference especially if the models are really complementary.</p>
+</div>
+</div>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+  </body>
+</html>
+

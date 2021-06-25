@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.81.0" />
+
+
+<title>Installer des packages R sur serveur AWS - problèmes et solutions - A Hugo website</title>
+<meta property="og:title" content="Installer des packages R sur serveur AWS - problèmes et solutions - A Hugo website">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/homepage/">Présentation</a></li>
+    
+    <li><a href="/cv/">CV</a></li>
+    
+    <li><a href="/post/">Articles et Publications</a></li>
+    
+    <li><a href="/contact/">Contact</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/app-behavioral-data-analysis/">Shiny Exemple</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/">Shiny Index</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">2 min read</span>
+    
+
+    <h1 class="article-title">Installer des packages R sur serveur AWS - problèmes et solutions</h1>
+
+    
+    <span class="article-date">2021-04-13</span>
+    
+
+    <div class="article-content">
+      
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>En essayant d’installer des packages pour R sur une instance AWS, il arrive parfois que l’installation n’aboutisse tout simplement pas. Le programme apparaît alors complètement bloqué, notamment lors des étapes de compilation.</p>
+<p>Ceci est particulièrement impactant pour des packages comme <code>dplyr</code> ou <code>sf</code> qui sont assez lourds et demandent une quantité de mémoire assez importante pour être installés.</p>
+<p>La solution consiste à utiliser le gestionnaire de paquets de Linux pour réaliser cette installation. Normalement, lors de l’installation de R sur votre serveur Linux, vous avez dû ajouter l’adresse du CRAN à la liste des repositories qui sont autorisés. SI ce n’est pas le cas, un petite visite sur cette page : <a href="https://cran.r-project.org/bin/linux/ubuntu/" class="uri">https://cran.r-project.org/bin/linux/ubuntu/</a> nous donne les infos nécessaires.</p>
+<p>A taper avec la commande sudo <code>add-apt-repository ppa:c2d4u.team/c2d4u4.0+</code></p>
+<p>A partir de là, on peut normalement piocher les packages R directement sur le site du CRAN avec le gestionnaire de paquets sans ouvrir R.</p>
+<p>Par exemple pour installer l’ensemble du tidyverse, il suffit de taper:
+<code>sudo apt-get install r-cran-tidyverse</code>.</p>
+<p>De la même façon les packages qui nous intéressent peuvent être cherchés via la commande:
+<code>apt-get search r-cran-*</code> en remplaçant "*" par votre package préféré, bien sûr.</p>
+<p>En passant directement via le gestionnaire de paquets, la compilation apparait comme bien plus efricace et bien moins coûteuse en ressources. Ceci permet d’installer à peu près n’importe quel package R sans avoir besoin d’upgrader le service AWS pour diminuer la puissance de l’instance juste après.</p>
+<p>Bref c’est une solution parfaite pour les gens comme moi qui veulent se faire la main sur une instance AWS tout en restant exclusivement sur la version gratuite.</p>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+    
+
+    
+  </body>
+</html>
+

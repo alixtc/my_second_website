@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.81.0" />
+
+
+<title>Simple image classification usinge a CNN - A Hugo website</title>
+<meta property="og:title" content="Simple image classification usinge a CNN - A Hugo website">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/homepage/">Présentation</a></li>
+    
+    <li><a href="/cv/">CV</a></li>
+    
+    <li><a href="/post/">Articles et Publications</a></li>
+    
+    <li><a href="/contact/">Contact</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/app-behavioral-data-analysis/">Shiny Exemple</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/">Shiny Index</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">6 min read</span>
+    
+
+    <h1 class="article-title">Simple image classification usinge a CNN</h1>
+
+    
+    <span class="article-date">2021-04-19</span>
+    
+
+    <div class="article-content">
+      
+<script src="/2021/04/19/simple-image-classification-usinge-a-cnn/index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>This post describes a simple way to perform multi-class classification using a convolutional neural networl (CNN). The data is composed of 60 000 images of clothing of 10 types (shoes, T-shirt, pants…). The purpose of the exercice is to accurately classify the testing dataset composed of another 10 000 of these types of pictures</p>
+<p>First we have to download the data. Fortunately there is a built-in function in <code>Keras</code> for training purposes.</p>
+<pre class="r"><code>library(keras)
+digits &lt;- dataset_mnist()
+c(c(traindigits, trainlabels), c(testdigits, testlabels)) %&lt;-% digits</code></pre>
+<p>The data is composed of hand-written digits in the range 0-9. Each digit is represent by a 28x28 pixel grayscale image and the label associated with the image is the corresponding number. The data look like this:</p>
+<p><img src="/2021/04/19/simple-image-classification-usinge-a-cnn/index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>It is necessary to encode the data in a tensor of rank 4. The first dimension corresponds to the number of the observation, the 2nd and 3rd corresponds to the X and Y axis of the pictures, meaning its height and width, while the 4th dimension corresponds to the channels (1 per color type in the picture). Here we have monochrome pictures, thus the 4th dimension will be equal to 1, if we were to work with RGB pictures it would be equal to 3.
+By dividing by 255, we ensure that the data are normalized in the range [0:1].</p>
+<pre class="r"><code>traindigits &lt;- array_reshape(traindigits, c(60000, 28, 28, 1))
+traindigits &lt;- traindigits / 255
+testdigits &lt;- array_reshape(testdigits, c(10000, 28, 28, 1))
+testdigits &lt;- testdigits / 255</code></pre>
+<p>In order to perform the multi-classification it is necessary for each label to be one-hot-encoded, which creates one column per class, and for a given observation the column associated to the actual class will contain the value 1, while all the other columns are set to 0.</p>
+<pre class="r"><code>trainlabels &lt;- to_categorical(trainlabels)
+testlabels &lt;- to_categorical(testlabels)
+head(trainlabels)</code></pre>
+<pre><code>##      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+## [1,]    0    0    0    0    0    1    0    0    0     0
+## [2,]    1    0    0    0    0    0    0    0    0     0
+## [3,]    0    0    0    0    1    0    0    0    0     0
+## [4,]    0    1    0    0    0    0    0    0    0     0
+## [5,]    0    0    0    0    0    0    0    0    0     1
+## [6,]    0    0    1    0    0    0    0    0    0     0</code></pre>
+<p>We set up the CNN as a succession of convolutional layers, in which the parameter “filters” corresponds to the number of neurons, and “kernel_size” is the size of the filter that we apply on each image. Here the filter has a shape of 3x3 pixels. The neurons in the convolutional layers will follow a “relu” function for their activation.</p>
+<p>The shape of the input has to be specified for the first layer of the network as usual. Here we only need to specify the dimension of the pictures and the number of channels (all the dimension execpt the first that corresponds to the observations).</p>
+<pre class="r"><code>model &lt;- keras_model_sequential() %&gt;% 
+  layer_conv_2d(filters = 32,
+                kernel_size = c(3, 3),
+                activation = &quot;relu&quot;,
+                input_shape = c(28, 28, 1)) %&gt;%
+  layer_max_pooling_2d(pool_size = c(2,2)) %&gt;%
+  layer_conv_2d(filters = 32,
+                kernel_size = c(3, 3),
+                activation = &quot;relu&quot;) %&gt;%
+  layer_flatten() %&gt;% 
+  layer_dense(units = 32, activation = &quot;relu&quot;) %&gt;% 
+  layer_dense(units = 10, activation = &quot;softmax&quot;)</code></pre>
+<p>The final layers of the network consist in simple dense layers. However the last layer has to be composed of exactly one unit (one neuron) per class, here we have 10 of them, and have to be activated by a “softmax” function that will scale the sum of all probalities for a given observation to one. This will allow the selection of the most probable class.</p>
+<p>Then we set up the compilation for the model, with a loss for a classification (we could have used “sparse_categorical_crossentropy” as well but since the number of classes is limited it should yield very similar results.)</p>
+<p>The optimizer “adam” and the “accuracy” metric are here good default choices for a classification problem.</p>
+<pre class="r"><code>model %&gt;% compile(loss = &quot;categorical_crossentropy&quot;,
+                  optimizer = &quot;adam&quot;,
+                  metrics = &quot;accuracy&quot;)</code></pre>
+<p>Finally we fit the whole model by using randomly 15% of the training data for evaluatuin of our model during the training part.</p>
+<pre class="r"><code>model %&gt;% fit(traindigits,
+              trainlabels,
+              epochs = 10,
+              batch_size = 1000,
+              validation_split = 0.15)</code></pre>
+<p>Now we only have to evalute the model using the testing dataset.</p>
+<pre class="r"><code>model %&gt;% evaluate(testdigits, testlabels)</code></pre>
+<pre><code>##       loss   accuracy 
+## 0.04070714 0.98740000</code></pre>
+<p>With an accuracy around ~98% the model does actually a pretty good job at classifying the data. If we wanted to have a more detailed look at how good it is at predicting the different classes we could get the prediction and use a confusion matrix.</p>
+<pre class="r"><code># extract the probabilities associated with each class
+results &lt;- model %&gt;% predict(testdigits) 
+# Keep the highest probability as the prediction
+results &lt;- apply(results, MARGIN = 1, FUN = function(x){which( x == max(x))})
+# retrieve the original labels for the test sets + start at 1 (instead of 0)
+truth &lt;- as.integer( digits$test$y)
+cf &lt;- caret::confusionMatrix(factor(results - 1), factor(truth))
+cf</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    0    1    2    3    4    5    6    7    8    9
+##          0  974    0    2    0    0    2    6    0    3    3
+##          1    0 1125    1    0    0    0    2    1    0    3
+##          2    0    2 1016    0    0    0    0    9    2    1
+##          3    0    0    2 1003    0    3    0    4    2    4
+##          4    1    1    1    0  980    0    3    2    0    8
+##          5    0    1    1    4    0  882    4    0    1    3
+##          6    2    2    1    0    0    2  941    0    0    0
+##          7    1    2    4    1    0    0    0 1008    3    1
+##          8    2    2    4    2    1    3    2    1  961    2
+##          9    0    0    0    0    1    0    0    3    2  984
+## 
+## Overall Statistics
+##                                          
+##                Accuracy : 0.9874         
+##                  95% CI : (0.985, 0.9895)
+##     No Information Rate : 0.1135         
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16      
+##                                          
+##                   Kappa : 0.986          
+##                                          
+##  Mcnemar&#39;s Test P-Value : NA             
+## 
+## Statistics by Class:
+## 
+##                      Class: 0 Class: 1 Class: 2 Class: 3 Class: 4 Class: 5
+## Sensitivity            0.9939   0.9912   0.9845   0.9931   0.9980   0.9888
+## Specificity            0.9982   0.9992   0.9984   0.9983   0.9982   0.9985
+## Pos Pred Value         0.9838   0.9938   0.9864   0.9853   0.9839   0.9844
+## Neg Pred Value         0.9993   0.9989   0.9982   0.9992   0.9998   0.9989
+## Prevalence             0.0980   0.1135   0.1032   0.1010   0.0982   0.0892
+## Detection Rate         0.0974   0.1125   0.1016   0.1003   0.0980   0.0882
+## Detection Prevalence   0.0990   0.1132   0.1030   0.1018   0.0996   0.0896
+## Balanced Accuracy      0.9961   0.9952   0.9915   0.9957   0.9981   0.9936
+##                      Class: 6 Class: 7 Class: 8 Class: 9
+## Sensitivity            0.9823   0.9805   0.9867   0.9752
+## Specificity            0.9992   0.9987   0.9979   0.9993
+## Pos Pred Value         0.9926   0.9882   0.9806   0.9939
+## Neg Pred Value         0.9981   0.9978   0.9986   0.9972
+## Prevalence             0.0958   0.1028   0.0974   0.1009
+## Detection Rate         0.0941   0.1008   0.0961   0.0984
+## Detection Prevalence   0.0948   0.1020   0.0980   0.0990
+## Balanced Accuracy      0.9907   0.9896   0.9923   0.9873</code></pre>
+<p>Overall we get a really good performance across all classes even though the error rate is a little higher for numbers such as 7 and 8.</p>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+  </body>
+</html>
+

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.81.0" />
+
+
+<title>Diabete prediction using deep learning - A Hugo website</title>
+<meta property="og:title" content="Diabete prediction using deep learning - A Hugo website">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/homepage/">Présentation</a></li>
+    
+    <li><a href="/cv/">CV</a></li>
+    
+    <li><a href="/post/">Articles et Publications</a></li>
+    
+    <li><a href="/contact/">Contact</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/app-behavioral-data-analysis/">Shiny Exemple</a></li>
+    
+    <li><a href="https://shiny.atc-data.fr/">Shiny Index</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">4 min read</span>
+    
+
+    <h1 class="article-title">Diabete prediction using deep learning</h1>
+
+    
+    <span class="article-date">2021-05-04</span>
+    
+
+    <div class="article-content">
+      
+<script src="/2021/05/04/diabete-prediction-using-deep-learning/index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>We will see in this example how to use a neural network to predict the apparition of a case of diabete based on several predictor variables such as glucose concentration in the blood test, blood pressure, age, number of pregnencies, levels of insulin… In the column <code>Outcome</code>, a 1 corresponds to a diagnosed a diabete case.</p>
+<pre class="r"><code>library(tidyverse)
+library(tidymodels)
+library(keras)
+
+diabetes &lt;- read_csv(&quot;diabetes.csv&quot;)
+predvars &lt;- c(&quot;Pregnancies&quot;, &quot;Glucose&quot;, &quot;BloodPressure&quot;, &quot;BMI&quot;, &quot;DiabetesPedigreeFunction&quot;)
+
+df &lt;- diabetes %&gt;%  select(Outcome, Pregnancies:Age)
+
+head(diabetes)</code></pre>
+<pre><code>## # A tibble: 6 x 9
+##   Pregnancies Glucose BloodPressure SkinThickness Insulin   BMI DiabetesPedigre…
+##         &lt;dbl&gt;   &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;
+## 1           6     148            72            35       0  33.6            0.627
+## 2           1      85            66            29       0  26.6            0.351
+## 3           8     183            64             0       0  23.3            0.672
+## 4           1      89            66            23      94  28.1            0.167
+## 5           0     137            40            35     168  43.1            2.29 
+## 6           5     116            74             0       0  25.6            0.201
+## # … with 2 more variables: Age &lt;dbl&gt;, Outcome &lt;dbl&gt;</code></pre>
+<p>First the dataset is split into a training and testing dataset, beside the <code>Outcome</code> column is set aside in both cases for a easier manipulations and to avoid unwanted modifications of the variable to predict.</p>
+<pre class="r"><code>set.seed(87654)
+# Spliting data using tidymodels functions.
+indexes &lt;- initial_split(df, prop = 0.9, strata = Outcome)
+training &lt;- training(indexes)
+testing &lt;- testing(indexes)
+
+# Isolate target variable from the predictor variables.
+x_training &lt;- training[,-1]
+y_training &lt;- training[, 1]
+
+x_test &lt;- testing[, -1]
+y_test &lt;- testing[, 1]</code></pre>
+<p>The data in each column training and testing sets are then normalized according to the mean and standard deviation of the training set. Since all data that go through a neural network must be subjected to the same preprocessing steps, it is important that mean and SD are defined by the training set especially if the testing set present a class imbalance or contains a large proportion of outliers values that could potentially change drastically the preprocessing steps and thus the prediction of the model.</p>
+<pre class="r"><code>m_means &lt;- map_dbl(x_training, mean)
+std &lt;- map_dbl(x_training, sd)
+x_training &lt;- scale(x_training, center = m_means, scale = std)
+
+x_test &lt;- scale(x_test, center = m_means, scale = std)
+y_test &lt;- as.matrix(y_test)</code></pre>
+<div id="build-a-simple-nn-model" class="section level3">
+<h3>Build a simple NN model</h3>
+<p>This model is a simple dense NN, with a few neurons in each layer, the different layers are separated by a drop out layer to limit the overfitting. The last layer is composed of a single neuron with a sigmoid for the function of activation, which allow to detect between the two possible outcomes in our case of a binary classification.</p>
+<pre class="r"><code>model &lt;- keras_model_sequential() %&gt;% 
+  layer_dense(units = 64, input_shape = c(ncol(x_training)), activation = &quot;relu&quot;) %&gt;% 
+  layer_dropout(0.3) %&gt;% 
+  layer_dense(units = 32, activation = &quot;relu&quot;) %&gt;% 
+  layer_dropout(0.3) %&gt;% 
+  layer_dense(units = 1, activation = &quot;sigmoid&quot;) 
+
+model %&gt;% compile(
+  optimizer = &quot;adam&quot;,
+  loss = &quot;binary_crossentropy&quot;,
+  metrics = &quot;accuracy&quot;
+)</code></pre>
+<p>Because here we have very little data to work with, in order to train the network we will rely on a resampling strategy during the training. This method known as k-fold cross-valisation consists in dividing the training dataset into k fractions (or folds), and then in setting aside one of the fraction of the data for validation, while training the network on the k-1 remaining folds. The process is repeated until all folds have been used for validation.</p>
+</div>
+<div id="definition-of-folds-and-training" class="section level3">
+<h3>definition of folds and training</h3>
+<pre class="r"><code>set.seed(3467)
+kfolds &lt;- 5
+splits &lt;- sample(1:kfolds, size = nrow(x_training), replace = TRUE)
+globalhist &lt;- list()
+for(i in 1:kfolds){
+  x_train_partial&lt;- x_training[splits != i, ]
+  y_train_partial&lt;- as.matrix(y_training[splits != i,])
+  
+  x_val &lt;- x_training[splits == i, ]
+  y_val &lt;- as.matrix(y_training[splits == i,])
+  
+  cat(&quot;\n&quot;, &quot;K-fold number:&quot;, i, &quot;\n\n&quot;)
+  
+  history &lt;- model %&gt;% fit(
+    x_train_partial,
+    y_train_partial,
+    epochs = 7,
+    batch_size = 1,
+    validation_data = list(x_val, y_val),
+    verbose = 0
+  )
+  
+  globalhist[[i]] &lt;- history$metrics
+}</code></pre>
+<pre><code>## 
+##  K-fold number: 1 
+## 
+## 
+##  K-fold number: 2 
+## 
+## 
+##  K-fold number: 3 
+## 
+## 
+##  K-fold number: 4 
+## 
+## 
+##  K-fold number: 5</code></pre>
+</div>
+<div id="plot-whole-history" class="section level3">
+<h3>Plot whole history</h3>
+<p>This part allows to have a look at how the model accuracy evolves during the training part. It aims to identify overfitting trends.</p>
+<pre class="r"><code>finalhistory &lt;- map(transpose(globalhist), unlist)
+finalhistory &lt;- as_tibble(finalhistory)
+# Add epochs
+finalhistory$epochs &lt;- 1:nrow(finalhistory)
+finalhistory %&gt;% 
+  pivot_longer(c(loss, val_loss, accuracy, val_accuracy), 
+               names_to = &quot;keys&quot;,
+               values_to = &quot;values&quot;) %&gt;%
+  mutate( loss =  case_when( str_detect(keys, &quot;loss&quot;) ~ &quot;loss&quot;,
+                             TRUE ~ &quot;accuracy&quot;),
+          step = case_when(str_detect(keys, &quot;val&quot;) ~ &quot;validation&quot;,
+                           TRUE ~ &quot;training&quot;)) %&gt;% 
+  ggplot(aes(x = epochs, y = values, color = step)) + 
+  geom_point() + 
+  geom_line() + 
+  facet_grid(rows =vars(loss), scales = &quot;free&quot;)</code></pre>
+<p><img src="/2021/05/04/diabete-prediction-using-deep-learning/index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>And finally the overall performance of the model is calculated.</p>
+<pre class="r"><code># Evaluate model
+model %&gt;% evaluate(x_test, y_test)</code></pre>
+<pre><code>##      loss  accuracy 
+## 0.4411726 0.8181818</code></pre>
+<p>We get an overall accuracy above 80% in the test phase, not too bad ! It could be proably even better with a little bit of work around the different parameters such as the number of epochs, number of folds, or units per layer in the model.</p>
+</div>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+  </body>
+</html>
+

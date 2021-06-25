@@ -1,0 +1,332 @@
+---
+title: Ensembling models
+author: ATC
+date: '2021-06-25'
+slug: ensembling-models
+categories: []
+tags: []
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+One of the great advantages of the tidymodels framework is the possibility to ensemble several models together in order to achieve better predicitions. The following example is largely based on the video from David Robinson for its series "Machine Learning Monday" available here: https://www.youtube.com/watch?v=HBZyqkVjUgY&t=4962s 
+
+The purpose of the exercise is to predict usersratings for board games from various predictor variables. The dataset is coming from a SLICED session from Kaggle and is available here: https://www.kaggle.com/c/sliced-s01e01/overview
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(textrecipes) 
+library(stacks) # package to ensemble models
+doParallel::registerDoParallel(cores = 4) # Runs tuning calculation in parallel
+
+raw_data <- read_csv("train.csv",
+                     col_types = cols(
+                       category7 = "c",
+                       category8 = "c", 
+                       category9 = "c",
+                       category10 = "c",
+                       category11 = "c",
+                       category12 = "c")
+)
+```
+
+```{r, echo=FALSE}
+raw_data
+```
+
+The first thing we do is a regroupment of some categorical columns.
+
+```{r}
+# Unite some of the categorical columns for later tokenization
+raw_data <- raw_data %>%
+  unite("category", contains("category"), sep = ", ", na.rm = TRUE) %>%
+  mutate(
+    mechanic = str_replace_all(mechanic, "/", ", "),
+    mechanic = str_replace_all(mechanic, "  ", " ")
+  )
+```
+
+## Exploratory data analysis
+
+First let's have a look on possible missing values.
+
+```{r}
+raw_data %>% map_dbl(~ sum(is.na(.x)))
+raw_data %>% map_dbl(~ sum(.x == 0, na.rm = TRUE))
+```
+
+A few missing values in each numerical columns are set to zero :age, min/max_time, players, but that should not impact the predictions. Now we should have a look on different predictors:
+
+```{r}
+raw_data %>% 
+  ggplot(aes(geek_rating)) +
+  geom_histogram()
+```
+
+
+```{r}
+raw_data %>% 
+  ggplot(aes(max_time)) +
+  geom_density() +
+  scale_x_log10()
+raw_data %>%
+  ggplot(aes(log(avg_time), log(max_time))) +
+  geom_point()
+```
+
+For most data points (```{r, echo = FALSE}raw_data %>% filter(max_time == avg_time) %>% nrow()
+```) ; average time is equal to the maximum duration of a game. So that variable won't be useful for predictions.
+
+```{r}
+raw_data %>%
+  ggplot(aes(log(min_time), log(avg_time))) +
+  geom_point()
+```
+
+In contrast, for most case avg_time >= min_time which means that both of them might be helpful.
+
+```{r}
+raw_data %>%
+  select(mechanic) %>%
+  separate_rows(mechanic, sep = ", |/") %>%
+  mutate(mechanic = str_trim(mechanic)) %>%
+  count(mechanic, sort = TRUE) 
+```
+
+The limited numbers of possibilities foe games mechanic will probably not necessitate token filtering to keep only the most used mechanics.
+
+There is a huge increase in the number of games registered in the recent years.
+```{r, echo=FALSE}
+raw_data %>%
+  filter(year > 1800) %>%
+  ggplot(aes(year)) +
+  geom_histogram()
+print('Board games invented befor 1800')
+raw_data %>% filter(year < 1800) %>% nrow()
+```
+
+And finally, the age for the games is centered aroung 10 with a few missing values as we saw previously that have been set to 0.
+```{r, echo=FALSE}
+raw_data %>%
+  ggplot(aes(age)) +
+  geom_histogram()
+```
+
+Globally there is a linear relationship between log of num_votes, owned and geek_rating, which indicates good potential for predictions.
+```{r}
+raw_data %>% ggplot(aes(log(num_votes), geek_rating)) +
+  geom_point()
+raw_data %>% ggplot(aes(log(owned), geek_rating)) +
+  geom_point()
+```
+
+## Begining of the modelling
+First we split the data, create the cross-validation folds from the training split and prepare the metric for the models.
+```{r}
+set.seed(2040)
+spl <- initial_split(raw_data, 0.8)
+train <- training(spl)
+test <- testing(spl)
+
+folds <- vfold_cv(train)
+mset <- metric_set(rmse)
+```
+
+### Linear Model
+We start with a linear model, and although the model itself is not particularly complex, there are a number of pre-processing steps that are not so easy:
+
+```{r}
+lmr_reci <- recipe(
+  geek_rating ~ owned + num_votes + min_players + max_players + year +
+    min_time + avg_time +
+    mechanic + category,
+  data = train
+) %>%
+  step_log(c(owned, num_votes), base = 10) %>%
+  step_ns(year, deg_free = tune()) %>%  # This parameter will be tune through resampling
+  step_mutate(max_players = pmin(max_players, 20)) %>%
+  # Tokenisation transform text elements in categorical variables,
+  # this is used on both 'mechanic' and 'category'.
+  step_tokenize(mechanic, 
+                category, 
+                token = "regex", 
+                options = list(pattern = ", ")) %>%
+  step_tf(mechanic, category)
+
+lmr_model <- linear_reg("regression") %>%
+  set_engine("lm")
+
+wf_lmr <- workflow() %>%
+  add_model(lmr_model) %>%
+  add_recipe(lmr_reci)
+```
+
+From this recipe and workflow, we evaluate the perfomance of the model for multiple values of the parameter 'degree of freedom' for the splines. This is done one each of the folds used for cross-validation.
+Note: The use of the function `control_stack_grid()` is essential later on to combine models. It saves the predictions and the models during the tuning process.
+```{r}
+lmr_tuned <- wf_lmr %>%
+  tune_grid(
+    resamples = folds,
+    grid = crossing(deg_free = 3:7),
+    metrics = mset,
+    control = control_stack_grid()
+  )
+
+lmr_tuned %>%
+  autoplot()
+```
+
+Finally, only the best performing model is kept for the evaluation of the model.
+
+```{r}
+lmr_fit <- wf_lmr %>%
+  finalize_workflow(select_best(lmr_tuned)) %>%
+  fit(train)
+
+lmr_fit %>%
+  predict(test) %>%
+  bind_cols(test) %>%
+  rmse(geek_rating, .pred)
+```
+
+With an average error around 0.2, we get alreday a fairly good prediction. Let's try to improve it with a different approach.
+
+### Random Forest Model
+Here we use the same kind of recipe as for the linear regression, with a notable difference, the number of tokens is limited to the 5 most used tokens for `mechanic` and `category` as a RF typically works better with a limited number of key predictors.
+
+```{r}
+rf_reci <-
+  recipe(
+    geek_rating ~ owned + num_votes + min_players + max_players + year +
+      min_time + avg_time +
+      mechanic + category,
+    data = train
+  ) %>%
+  step_log(c(owned, num_votes), base = 10) %>%
+  step_mutate(max_players = pmin(max_players, 20)) %>%
+  step_tokenize(mechanic, category, token = "regex", options = list(pattern = ", ")) %>%
+  step_tokenfilter(mechanic, category, max_tokens = 5) %>%
+  step_tf(mechanic, category)
+
+rf_spec <- rand_forest(mtry = tune(), trees = 300) %>%
+  set_engine("ranger") %>%
+  set_mode("regression")
+
+rf_wf <- workflow() %>%
+  add_model(rf_spec) %>%
+  add_recipe(rf_reci)
+```
+
+The number of trees has been tuned previously and the best values of 300 has been manually selected.
+
+```{r}
+rf_tuned <- rf_wf %>%
+  tune_grid(
+    resamples = folds,
+    metrics = mset,
+    grid = crossing(mtry = 12:16),
+    control = control_stack_grid()
+  )
+autoplot(rf_tuned)
+```
+
+As previouly we fit the model using the best parameters from the tuning process.
+
+```{r}
+rf_fit <- rf_wf %>%
+  finalize_workflow(select_best(rf_tuned)) %>%
+  fit(train)
+
+rf_fit %>%
+  predict(test) %>%
+  bind_cols(truth = test$geek_rating) %>%
+  rmse(.pred, truth)
+```
+
+Here we get a lower RMSE compared to the linear model, with roughly a 25% improvement in prediction error.
+
+### Support vector Machine
+
+The third and last model will be a SVM using a radial based kernel. We will use here a simplified version of the recipe with only numeric predictors as input, in order to increase the diversity between the models. 
+
+```{r}
+svm_reci <-
+  recipe(
+    geek_rating ~ owned + num_votes + year +
+      min_time + avg_time,
+    data = train
+  ) %>%
+  step_log(c(owned, num_votes), base = 10)
+
+svm_spec <- svm_rbf(cost = tune(), rbf_sigma = tune()) %>%
+  set_engine("kernlab") %>%
+  set_mode("regression")
+
+svm_wf <- workflow() %>%
+  add_model(svm_spec) %>%
+  add_recipe(svm_reci)
+```
+
+We tune the model for 2 different parameters: the cost, which is roughly a tolerance to misclassification allowing a better generalization of the results and the RBF-sigma value which dictates how distant point will be used to the detemination of the boundaries.
+
+```{r}
+svm_tuned <- svm_wf %>%
+  tune_grid(
+    resamples = folds,
+    metrics = mset,
+    grid = crossing(
+      cost = seq(10, 16, 2),
+      rbf_sigma = seq(0.7, 1, 0.05)
+    ),
+    control = control_stack_grid()
+  )
+autoplot(svm_tuned)
+```
+
+```{r}
+svm_fit <- svm_wf %>%
+  finalize_workflow(select_best(svm_tuned)) %>%
+  fit(train)
+
+svm_fit %>%
+  predict(test) %>%
+  bind_cols(truth = test$geek_rating) %>%
+  rmse(.pred, truth)
+```
+
+We see here that our SVM model performs slightly worse than our RF model, but since our goal is to have many differents inputs to combine in a ensemble this is actually OK.
+
+### Ensembling models
+
+In the Tidymodels framework, in order to combine models we have to provide tuned objects, in which we save both the predictions and the model, this is why we used the function `stacks::control_stack_grid()` so far in the tuning process. In order to reduce the computation we will only keep the best of each model as we have done previously. 
+
+```{r}
+lmr_chosen <- lmr_tuned %>%
+  filter_parameters(parameters = select_best(lmr_tuned))
+rf_chosen <- rf_tuned %>%
+  filter_parameters(parameters = select_best(rf_tuned))
+svm_chosen <- svm_tuned %>%
+  filter_parameters(parameters = select_best(svm_tuned))
+
+combined_models <-
+  stacks() %>%
+  add_candidates(lmr_chosen) %>%
+  add_candidates(rf_chosen) %>%
+  add_candidates(svm_chosen)
+
+combined_fit <-
+  combined_models %>%
+  blend_predictions() %>%
+  fit_members()
+
+predict(combined_fit, test) %>%
+  bind_cols(test) %>%
+  rmse(geek_rating, .pred)
+```
+
+The combination is created using the three diffrent models, their relative contribution is determined using `blend_predictions()` which gives each one a weight in the ensemble. The final function of the pipe `fit_members()` allows to fit the ensemble on the training data set. Finally we use the usal `predict` and `rmse` function to determine the ensemble performance
+
+As we see here we get a better estimate compared to each of our separate models. Although the improvement here is not huge it can sometimes make a big difference especially if the models are really complementary. 
